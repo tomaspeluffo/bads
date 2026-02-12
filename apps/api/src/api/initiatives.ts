@@ -136,6 +136,29 @@ initiativeRouter.post(
   }),
 );
 
+// GET /api/initiatives/:id/questions - Get planner questions for a needs_info initiative
+initiativeRouter.get(
+  "/initiatives/:id/questions",
+  authMiddleware,
+  validate({ params: InitiativeIdParams }),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id as string;
+    const initiative = await initiativeService.getInitiativeById(id);
+    if (!initiative) throw new AppError(404, "Initiative not found");
+
+    const metadata = (initiative.metadata as Record<string, unknown>) ?? {};
+    const questions = metadata.plannerQuestions ?? [];
+    const analysis = metadata.plannerAnalysis ?? null;
+
+    res.json({
+      initiativeId: id,
+      status: initiative.status,
+      analysis,
+      questions,
+    });
+  }),
+);
+
 // GET /api/initiatives - List initiatives
 initiativeRouter.get(
   "/initiatives",
