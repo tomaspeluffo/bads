@@ -3,7 +3,8 @@ import { getHealthStatus } from "../services/health.js";
 
 export const healthRouter = Router();
 
-healthRouter.get("/health", (_req, res) => {
-  const data = getHealthStatus();
-  res.json(data);
+healthRouter.get("/health", async (_req, res) => {
+  const data = await getHealthStatus();
+  const httpStatus = data.status === "ok" ? 200 : data.status === "degraded" ? 200 : 503;
+  res.status(httpStatus).json(data);
 });
