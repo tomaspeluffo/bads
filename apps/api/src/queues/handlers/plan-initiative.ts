@@ -39,14 +39,42 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
       notionContent = initiative.raw_content as unknown as NotionPageContent;
     }
 
+    // Read additional context if this is a re-plan after answering questions
+    const initiative = await initiativeService.getInitiativeById(initiativeId);
+    const additionalContext = (initiative?.metadata as Record<string, unknown>)?.additionalContext as string | undefined;
+
     // 2. Run Planner Agent
     log.info({ initiativeId }, "Running Planner Agent");
     const planResult = await runPlannerAgent({
       initiativeId,
       notionContent,
+      additionalContext,
     });
 
-    // 3. Store plan
+    // 3. Handle result based on status
+    if (planResult.status === "needs_info") {
+      log.info(
+        { initiativeId, questionCount: planResult.questions.length },
+        "Planner needs more information",
+      );
+
+      // Store questions in metadata and set status to needs_info
+      const currentMetadata = (initiative?.metadata as Record<string, unknown>) ?? {};
+      await initiativeService.updateInitiative(initiativeId, {
+        metadata: {
+          ...currentMetadata,
+          plannerAnalysis: planResult.summary,
+          plannerQuestions: planResult.questions,
+        },
+      });
+      await initiativeService.updateInitiativeStatus(initiativeId, "needs_info");
+      return;
+    }
+
+    // status === "ready" — create plan and features
+    log.info({ initiativeId, featureCount: planResult.features.length }, "Planner produced a plan");
+
+    // 4. Store plan
     const version = await planService.getNextPlanVersion(initiativeId);
     const plan = await planService.createPlan({
       initiative_id: initiativeId,
@@ -57,7 +85,7 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
       is_active: true,
     });
 
-    // 4. Store features
+    // 5. Store features
     const featureInserts = planResult.features.map((f, i) => ({
       plan_id: plan.id,
       initiative_id: initiativeId,
@@ -72,7 +100,7 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
     const features = await featureService.createFeatures(featureInserts);
     await initiativeService.updateInitiativeStatus(initiativeId, "planned");
 
-    // 5. Start first feature
+    // 6. Start first feature
     const firstFeature = features[0];
     if (firstFeature) {
       await initiativeService.updateInitiativeStatus(initiativeId, "in_progress");

@@ -5,6 +5,7 @@ import { asyncHandler, AppError } from "../middleware/error-handler.js";
 import {
   CreateInitiativeBody,
   UploadInitiativeBody,
+  ReplanInitiativeBody,
   ListInitiativesQuery,
   InitiativeIdParams,
 } from "../models/api-schemas.js";
@@ -78,7 +79,7 @@ initiativeRouter.post(
     };
 
     const initiative = await initiativeService.createInitiative({
-      notion_page_id: "direct-upload",
+      notion_page_id: `direct-upload-${crypto.randomUUID()}`,
       title,
       raw_content: rawContent,
       status: "pending",
@@ -93,6 +94,45 @@ initiativeRouter.post(
     });
 
     res.status(201).json(initiative);
+  }),
+);
+
+// POST /api/initiatives/:id/replan - Provide additional context and re-trigger planning
+initiativeRouter.post(
+  "/initiatives/:id/replan",
+  authMiddleware,
+  validate({ params: InitiativeIdParams, body: ReplanInitiativeBody }),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id as string;
+    const { additionalContext } = req.body as ReplanInitiativeBody;
+
+    const initiative = await initiativeService.getInitiativeById(id);
+    if (!initiative) throw new AppError(404, "Initiative not found");
+
+    if (initiative.status !== "needs_info" && initiative.status !== "failed") {
+      throw new AppError(400, `Cannot replan initiative with status "${initiative.status}". Must be "needs_info" or "failed".`);
+    }
+
+    // Merge additional context into metadata
+    const currentMetadata = (initiative.metadata as Record<string, unknown>) ?? {};
+    const existingContext = (currentMetadata.additionalContext as string) ?? "";
+    const mergedContext = existingContext
+      ? `${existingContext}\n\n---\n\n${additionalContext}`
+      : additionalContext;
+
+    await initiativeService.updateInitiative(id, {
+      metadata: { ...currentMetadata, additionalContext: mergedContext },
+    });
+
+    // Re-enqueue planning job
+    const { targetRepo, baseBranch } = currentMetadata as { targetRepo: string; baseBranch: string };
+    await enqueuePlanInitiative({
+      initiativeId: id,
+      targetRepo,
+      baseBranch,
+    });
+
+    res.json({ message: "Re-planning initiated", initiativeId: id });
   }),
 );
 

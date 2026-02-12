@@ -44,6 +44,12 @@ export const InitiativeIdParams = z.object({
   id: z.string().uuid(),
 });
 
+export const ReplanInitiativeBody = z.object({
+  additionalContext: z.string().min(1),
+});
+
+export type ReplanInitiativeBody = z.infer<typeof ReplanInitiativeBody>;
+
 // --- Features ---
 
 export const FeatureActionParams = z.object({

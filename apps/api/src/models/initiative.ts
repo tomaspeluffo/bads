@@ -3,6 +3,7 @@ import { z } from "zod";
 export const initiativeStatuses = [
   "pending",
   "planning",
+  "needs_info",
   "planned",
   "in_progress",
   "completed",
