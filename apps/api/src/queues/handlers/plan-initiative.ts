@@ -4,6 +4,7 @@ import * as initiativeService from "../../services/initiative.service.js";
 import * as planService from "../../services/plan.service.js";
 import * as featureService from "../../services/feature.service.js";
 import * as notionService from "../../services/notion.service.js";
+import type { NotionPageContent } from "../../services/notion.service.js";
 import { runPlannerAgent } from "../../agents/planner.agent.js";
 import { createChildLogger } from "../../lib/logger.js";
 
@@ -15,16 +16,28 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
   await initiativeService.updateInitiativeStatus(initiativeId, "planning");
 
   try {
-    // 1. Fetch Notion content
-    log.info({ notionPageId }, "Fetching Notion content");
-    const notionContent = await notionService.fetchAndParseNotionPage(notionPageId);
+    let notionContent: NotionPageContent;
 
-    // Update initiative with parsed content
-    await initiativeService.updateInitiative(initiativeId, {
-      title: notionContent.title || `Initiative from ${notionPageId}`,
-      raw_content: notionContent as unknown as Record<string, unknown>,
-      notion_url: notionContent.url ?? null,
-    });
+    if (notionPageId) {
+      // Fetch from Notion
+      log.info({ notionPageId }, "Fetching Notion content");
+      notionContent = await notionService.fetchAndParseNotionPage(notionPageId);
+
+      // Update initiative with parsed content
+      await initiativeService.updateInitiative(initiativeId, {
+        title: notionContent.title || `Initiative from ${notionPageId}`,
+        raw_content: notionContent as unknown as Record<string, unknown>,
+        notion_url: notionContent.url ?? null,
+      });
+    } else {
+      // Direct upload — content already stored in raw_content
+      log.info({ initiativeId }, "Using pre-populated content (direct upload)");
+      const initiative = await initiativeService.getInitiativeById(initiativeId);
+      if (!initiative?.raw_content) {
+        throw new Error("Initiative has no raw_content for direct upload");
+      }
+      notionContent = initiative.raw_content as unknown as NotionPageContent;
+    }
 
     // 2. Run Planner Agent
     log.info({ initiativeId }, "Running Planner Agent");

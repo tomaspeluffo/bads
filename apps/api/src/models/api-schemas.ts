@@ -13,6 +13,20 @@ export const CreateInitiativeBody = z.object({
 
 export type CreateInitiativeBody = z.infer<typeof CreateInitiativeBody>;
 
+export const UploadInitiativeBody = z.object({
+  title: z.string().min(1),
+  problem: z.string().min(1),
+  solutionSketch: z.string().min(1),
+  noGos: z.array(z.string()).default([]),
+  risks: z.array(z.string()).default([]),
+  responsable: z.string().default(""),
+  soporte: z.string().default(""),
+  targetRepo: z.string().min(1),
+  baseBranch: z.string().default("main"),
+});
+
+export type UploadInitiativeBody = z.infer<typeof UploadInitiativeBody>;
+
 export const ListInitiativesQuery = z.object({
   page: z.coerce.number().int().min(1).default(PAGINATION.DEFAULT_PAGE),
   limit: z.coerce

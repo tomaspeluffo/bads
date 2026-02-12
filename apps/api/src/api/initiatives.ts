@@ -4,6 +4,7 @@ import { validate } from "../middleware/validate.js";
 import { asyncHandler, AppError } from "../middleware/error-handler.js";
 import {
   CreateInitiativeBody,
+  UploadInitiativeBody,
   ListInitiativesQuery,
   InitiativeIdParams,
 } from "../models/api-schemas.js";
@@ -37,6 +38,56 @@ initiativeRouter.post(
     await enqueuePlanInitiative({
       initiativeId: initiative.id,
       notionPageId,
+      targetRepo,
+      baseBranch,
+    });
+
+    res.status(201).json(initiative);
+  }),
+);
+
+// POST /api/initiatives/upload - Create initiative from direct pitch upload (no Notion)
+initiativeRouter.post(
+  "/initiatives/upload",
+  authMiddleware,
+  validate({ body: UploadInitiativeBody }),
+  asyncHandler(async (req, res) => {
+    const {
+      title,
+      problem,
+      solutionSketch,
+      noGos,
+      risks,
+      responsable,
+      soporte,
+      targetRepo,
+      baseBranch,
+    } = req.body as UploadInitiativeBody;
+    const user = (req as AuthenticatedRequest).user;
+
+    const rawContent = {
+      title,
+      url: null,
+      problem,
+      solutionSketch,
+      noGos,
+      risks,
+      responsable,
+      soporte,
+      rawBlocks: [],
+    };
+
+    const initiative = await initiativeService.createInitiative({
+      notion_page_id: "direct-upload",
+      title,
+      raw_content: rawContent,
+      status: "pending",
+      started_by: user.id,
+      metadata: { targetRepo, baseBranch },
+    });
+
+    await enqueuePlanInitiative({
+      initiativeId: initiative.id,
       targetRepo,
       baseBranch,
     });

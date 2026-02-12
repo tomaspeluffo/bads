@@ -18,7 +18,7 @@ export type JobTypeName = (typeof JobType)[keyof typeof JobType];
 export interface PlanInitiativeData {
   type: typeof JobType.PLAN_INITIATIVE;
   initiativeId: string;
-  notionPageId: string;
+  notionPageId?: string;
   targetRepo: string;
   baseBranch: string;
 }

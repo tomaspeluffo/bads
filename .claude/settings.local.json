@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(cmd /c \"dir C:\\\\Users\\\\Usuario\\\\claude_repos\\\\bads\")",
+      "Bash(cmd /c \"for /d %i in \\(*\\) do if /i not \"%i\"==\".claude\" rd /s /q \"%i\"\")",
+      "Bash(cmd /c \"del /q *.md *.sql 2>nul\")",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm --filter api run lint:*)",
+      "Bash(pnpm --filter web run lint)",
+      "Bash(pnpm --filter api run test:*)",
+      "Bash(findstr:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh auth status:*)",
+      "Bash(git config:*)",
+      "Bash(curl:*)",
+      "Bash(pnpm --filter api add:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm --filter api lint:*)",
+      "Bash(pnpm --filter api test:*)",
+      "Bash(npx:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(docker:*)",
+      "WebSearch",
+      "Bash(node -e \"const IORedis = require\\(''ioredis''\\); const r = new IORedis\\(''redis://default:4OWmVEfQTtXo81zm3p0L6SkUAaPrpYTN@redis-13899.c308.sa-east-1-1.ec2.cloud.redislabs.com:13899''\\); r.ping\\(\\).then\\(res => { console.log\\(''PING:'', res\\); r.disconnect\\(\\); }\\).catch\\(err => { console.error\\(''ERROR:'', err.message\\); r.disconnect\\(\\); }\\);\")",
+      "Bash(node -e:*)",
+      "Bash(pnpm dev:api:*)",
+      "Bash(timeout:*)"
+    ]
+  }
+}

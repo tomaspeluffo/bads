@@ -29,7 +29,7 @@ export const InitiativeSchema = z.object({
 export type Initiative = z.infer<typeof InitiativeSchema>;
 
 export const InsertInitiativeSchema = z.object({
-  notion_page_id: z.string().min(1),
+  notion_page_id: z.string(),
   notion_url: z.string().nullable().optional(),
   title: z.string().min(1),
   raw_content: z.record(z.unknown()).nullable().optional(),
