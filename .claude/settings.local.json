@@ -26,7 +26,8 @@
       "Bash(node -e \"const IORedis = require\\(''ioredis''\\); const r = new IORedis\\(''redis://default:4OWmVEfQTtXo81zm3p0L6SkUAaPrpYTN@redis-13899.c308.sa-east-1-1.ec2.cloud.redislabs.com:13899''\\); r.ping\\(\\).then\\(res => { console.log\\(''PING:'', res\\); r.disconnect\\(\\); }\\).catch\\(err => { console.error\\(''ERROR:'', err.message\\); r.disconnect\\(\\); }\\);\")",
       "Bash(node -e:*)",
       "Bash(pnpm dev:api:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(python:*)"
     ]
   }
 }

@@ -238,7 +238,7 @@ Can also be `rejected` (goes back to developing) or `failed`.
 
 ### Task Statuses
 
-`to_do` → `doing` → `review` → `done` (or `failed`)
+`pending` → `in_progress` → `completed` (or `failed`)
 
 ## Agents
 
