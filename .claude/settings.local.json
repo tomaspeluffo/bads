@@ -31,7 +31,9 @@
       "Bash(find:*)",
       "Bash(pnpm add:*)",
       "Bash(pnpm remove:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npm install:*)",
+      "Bash(pnpm --filter web add:*)"
     ]
   }
 }

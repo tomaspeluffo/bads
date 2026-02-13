@@ -1,5 +1,5 @@
 import type { MergeFeatureData } from "../jobs.js";
-import { enqueueDecomposeFeature, enqueueCompleteInitiative } from "../jobs.js";
+import { enqueueCompleteInitiative } from "../jobs.js";
 import * as featureService from "../../services/feature.service.js";
 import * as githubService from "../../services/github.service.js";
 import { getOctokitForInitiative } from "../../services/github-token.service.js";
@@ -33,16 +33,7 @@ export async function handleMergeFeature(data: MergeFeatureData): Promise<void> 
     if (allMerged) {
       await enqueueCompleteInitiative({ initiativeId, targetRepo, baseBranch });
     } else {
-      // Start next pending feature
-      const nextFeature = await featureService.getNextPendingFeature(initiativeId);
-      if (nextFeature) {
-        await enqueueDecomposeFeature({
-          initiativeId,
-          featureId: nextFeature.id,
-          targetRepo,
-          baseBranch,
-        });
-      }
+      log.info({ initiativeId, featureId }, "Feature merged, awaiting manual start of next feature");
     }
   } catch (err) {
     log.error({ err, featureId }, "Merge feature failed");

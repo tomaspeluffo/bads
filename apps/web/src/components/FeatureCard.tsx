@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, GripVertical } from "lucide-react";
+import { useDraggable } from "@dnd-kit/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Feature } from "@/types";
+
+const DRAGGABLE_STATUSES = ["pending", "failed", "rejected", "developing"];
 
 interface FeatureCardProps {
   feature: Feature;
@@ -18,6 +21,17 @@ export function FeatureCard({ feature, onApprove, onReject }: FeatureCardProps) 
   const [rejecting, setRejecting] = useState(false);
   const [feedback, setFeedback] = useState("");
 
+  const isDraggable = DRAGGABLE_STATUSES.includes(feature.status);
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: feature.id,
+    data: { feature },
+    disabled: !isDraggable,
+  });
+
+  const style = transform
+    ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 50 }
+    : undefined;
+
   const handleReject = () => {
     if (feedback.trim().length >= 10) {
       onReject?.(feature.id, feedback);
@@ -27,10 +41,23 @@ export function FeatureCard({ feature, onApprove, onReject }: FeatureCardProps) 
   };
 
   return (
-    <Card>
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? "opacity-50" : ""}
+    >
       <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setOpen(!open)}>
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-base select-none">{feature.title}</CardTitle>
+          {isDraggable && (
+            <button
+              className="mt-0.5 cursor-grab text-muted-foreground hover:text-foreground touch-none"
+              {...listeners}
+              {...attributes}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
+          <CardTitle className="text-base select-none flex-1">{feature.title}</CardTitle>
           <StatusBadge status={feature.status} />
         </div>
         {feature.pr_url && (

@@ -200,6 +200,16 @@ export async function approveFeature(
   await api.post(`/initiatives/${initiativeId}/features/${featureId}/approve`);
 }
 
+export async function moveFeature(
+  initiativeId: string,
+  featureId: string,
+  targetColumn: "in_progress" | "review",
+): Promise<void> {
+  await api.post(`/initiatives/${initiativeId}/features/${featureId}/move`, {
+    targetColumn,
+  });
+}
+
 export async function rejectFeature(
   initiativeId: string,
   featureId: string,

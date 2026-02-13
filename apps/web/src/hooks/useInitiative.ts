@@ -5,6 +5,7 @@ import {
   submitReplan,
   approveFeature,
   rejectFeature,
+  moveFeature,
   uploadInitiative,
   deleteInitiative,
   updateInitiativeRepo,
@@ -78,6 +79,17 @@ export function useRejectFeature(initiativeId: string) {
   return useMutation({
     mutationFn: ({ featureId, feedback }: { featureId: string; feedback: string }) =>
       rejectFeature(initiativeId, featureId, feedback),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
+    },
+  });
+}
+
+export function useMoveFeature(initiativeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ featureId, targetColumn }: { featureId: string; targetColumn: "in_progress" | "review" }) =>
+      moveFeature(initiativeId, featureId, targetColumn),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
     },

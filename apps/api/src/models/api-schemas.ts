@@ -75,6 +75,12 @@ export const RejectFeatureBody = z.object({
 
 export type RejectFeatureBody = z.infer<typeof RejectFeatureBody>;
 
+export const MoveFeatureBody = z.object({
+  targetColumn: z.enum(["in_progress", "review"]),
+});
+
+export type MoveFeatureBody = z.infer<typeof MoveFeatureBody>;
+
 // --- Memory ---
 
 export const ListPatternsQuery = z.object({

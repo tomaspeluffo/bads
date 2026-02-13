@@ -1,5 +1,4 @@
 import type { DevelopFeatureData } from "../jobs.js";
-import { enqueueQAReview } from "../jobs.js";
 import * as featureService from "../../services/feature.service.js";
 import * as taskService from "../../services/task.service.js";
 import { runDeveloperAgent } from "../../agents/developer.agent.js";
@@ -61,15 +60,7 @@ export async function handleDevelopFeature(data: DevelopFeatureData): Promise<vo
       log.info({ taskId: task.id }, "Task completed");
     }
 
-    // All tasks done -> QA review
-    await enqueueQAReview({
-      initiativeId,
-      featureId,
-      targetRepo,
-      baseBranch,
-    });
-
-    log.info({ featureId }, "Feature development completed");
+    log.info({ featureId }, "Feature development completed, awaiting manual move to review");
   } catch (err) {
     log.error({ err, featureId }, "Develop feature failed");
     await featureService.updateFeatureStatus(featureId, "failed");

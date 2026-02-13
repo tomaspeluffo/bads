@@ -19,6 +19,7 @@ import {
   useReplan,
   useApproveFeature,
   useRejectFeature,
+  useMoveFeature,
   useDeleteInitiative,
   useUpdateRepo,
 } from "@/hooks/useInitiative";
@@ -38,6 +39,7 @@ export function InitiativeDetailPage() {
   const replan = useReplan(initiativeId!);
   const approve = useApproveFeature(initiativeId!);
   const reject = useRejectFeature(initiativeId!);
+  const move = useMoveFeature(initiativeId!);
   const deleteInit = useDeleteInitiative();
   const updateRepo = useUpdateRepo(initiativeId!);
   const [answer, setAnswer] = useState("");
@@ -320,10 +322,11 @@ export function InitiativeDetailPage() {
             </p>
           )}
           <div className="mt-4">
-             <FeatureKanbanBoard 
+             <FeatureKanbanBoard
               features={initiative.features}
               onApprove={(fid) => approve.mutate(fid)}
               onReject={(fid, feedback) => reject.mutate({ featureId: fid, feedback })}
+              onMove={(fid, targetColumn) => move.mutate({ featureId: fid, targetColumn })}
              />
           </div>
           <Separator />

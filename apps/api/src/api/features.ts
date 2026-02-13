@@ -2,10 +2,10 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { asyncHandler, AppError } from "../middleware/error-handler.js";
-import { FeatureActionParams, RejectFeatureBody } from "../models/api-schemas.js";
+import { FeatureActionParams, RejectFeatureBody, MoveFeatureBody } from "../models/api-schemas.js";
 import * as featureService from "../services/feature.service.js";
 import * as initiativeService from "../services/initiative.service.js";
-import { enqueueMergeFeature, enqueueDevelopFeature } from "../queues/jobs.js";
+import { enqueueMergeFeature, enqueueDevelopFeature, enqueueDecomposeFeature, enqueueQAReview } from "../queues/jobs.js";
 
 export const featureRouter = Router();
 
@@ -88,5 +88,61 @@ featureRouter.post(
     });
 
     res.json({ message: "Feature rejected, re-developing with feedback" });
+  }),
+);
+
+// POST /api/initiatives/:id/features/:fid/move
+featureRouter.post(
+  "/initiatives/:id/features/:fid/move",
+  authMiddleware,
+  validate({ params: FeatureActionParams, body: MoveFeatureBody }),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id as string;
+    const fid = req.params.fid as string;
+    const { targetColumn } = req.body as MoveFeatureBody;
+
+    const initiative = await initiativeService.getInitiativeById(id);
+    if (!initiative) throw new AppError(404, "Initiative not found");
+
+    const metadata = initiative.metadata as Record<string, string> | null;
+    if (!metadata?.targetRepo) {
+      throw new AppError(400, "La iniciativa no tiene un repositorio configurado.");
+    }
+
+    const feature = await featureService.getFeatureById(fid);
+    if (!feature || feature.initiative_id !== id) {
+      throw new AppError(404, "Feature not found");
+    }
+
+    if (targetColumn === "in_progress") {
+      const allowedStatuses = ["pending", "failed", "rejected"];
+      if (!allowedStatuses.includes(feature.status)) {
+        throw new AppError(400, `No se puede mover a In Progress desde el estado "${feature.status}"`);
+      }
+
+      await initiativeService.updateInitiativeStatus(id, "in_progress");
+      await enqueueDecomposeFeature({
+        initiativeId: id,
+        featureId: fid,
+        targetRepo: metadata.targetRepo,
+        baseBranch: metadata.baseBranch ?? "main",
+      });
+
+      res.json({ message: "Feature movida a In Progress, decompose iniciado" });
+    } else {
+      // targetColumn === "review"
+      if (feature.status !== "developing") {
+        throw new AppError(400, `No se puede mover a Review desde el estado "${feature.status}"`);
+      }
+
+      await enqueueQAReview({
+        initiativeId: id,
+        featureId: fid,
+        targetRepo: metadata.targetRepo,
+        baseBranch: metadata.baseBranch ?? "main",
+      });
+
+      res.json({ message: "Feature movida a Review, QA review iniciado" });
+    }
   }),
 );

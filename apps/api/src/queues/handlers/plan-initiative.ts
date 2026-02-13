@@ -1,5 +1,4 @@
 import type { PlanInitiativeData } from "../jobs.js";
-import { enqueueDecomposeFeature } from "../jobs.js";
 import * as initiativeService from "../../services/initiative.service.js";
 import * as planService from "../../services/plan.service.js";
 import * as featureService from "../../services/feature.service.js";
@@ -100,20 +99,7 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
     const features = await featureService.createFeatures(featureInserts);
     await initiativeService.updateInitiativeStatus(initiativeId, "planned");
 
-    // 6. Start first feature (only if targetRepo is set)
-    const firstFeature = features[0];
-    if (firstFeature && targetRepo) {
-      await initiativeService.updateInitiativeStatus(initiativeId, "in_progress");
-      await enqueueDecomposeFeature({
-        initiativeId,
-        featureId: firstFeature.id,
-        targetRepo,
-        baseBranch,
-      });
-      log.info({ initiativeId, featureCount: features.length }, "Plan created, decomposition started");
-    } else if (!targetRepo) {
-      log.info({ initiativeId, featureCount: features.length }, "Plan created, awaiting target repo before starting execution");
-    }
+    log.info({ initiativeId, featureCount: features.length }, "Plan created, awaiting manual feature start");
   } catch (err) {
     log.error({ err, initiativeId }, "Plan initiative failed");
     await initiativeService.updateInitiativeStatus(
