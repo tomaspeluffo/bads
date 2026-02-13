@@ -58,7 +58,7 @@ export function ClientDetailPage() {
               Nueva Iniciativa
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] h-[800px] flex flex-col">
+          <DialogContent className="sm:max-w-[80vw] max-w-[95vw] w-full h-[800px] max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-2xl">Nueva Iniciativa</DialogTitle>
             </DialogHeader>

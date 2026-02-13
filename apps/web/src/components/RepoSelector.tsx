@@ -1,10 +1,16 @@
-import { useState, useRef, useEffect } from "react";
-import { Github, Plus, Loader2, Search, Lock, Globe, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import { Github, Plus, Search, Check, ChevronsUpDown, Loader2, Lock, Globe } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 import { useGitHubStatus, useGitHubRepos, useConnectGitHub, useCreateGitHubRepo } from "@/hooks/useGitHub";
 
 interface RepoSelectorProps {
@@ -24,19 +30,6 @@ export function RepoSelector({ value, onChange }: RepoSelectorProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newRepoName, setNewRepoName] = useState("");
   const [newRepoPrivate, setNewRepoPrivate] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setShowCreateForm(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // State 1: GitHub not connected
   if (!isConnected) {
@@ -50,7 +43,7 @@ export function RepoSelector({ value, onChange }: RepoSelectorProps) {
           disabled={connect.isPending}
         >
           <Github className="h-4 w-4" />
-          {connect.isPending ? "Redirigiendo..." : "Conectar GitHub para seleccionar repositorio"}
+          {connect.isPending ? "Redirigiendo..." : "Conectar GitHub"}
         </Button>
         {value && (
           <p className="text-xs text-muted-foreground">
@@ -86,86 +79,13 @@ export function RepoSelector({ value, onChange }: RepoSelectorProps) {
     );
   };
 
-  return (
-    <div ref={containerRef} className="relative">
-      {/* Trigger */}
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className={cn(
-          "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-          !value && "text-muted-foreground",
-        )}
-      >
-        <span className="flex items-center gap-2 truncate">
-          <Github className="h-4 w-4 shrink-0" />
-          {value || "Seleccionar repositorio..."}
-        </span>
-        <ChevronDown className={cn("h-4 w-4 shrink-0 opacity-50 transition-transform", open && "rotate-180")} />
-      </button>
-
-      {/* Dropdown */}
-      {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
-          {/* Search */}
-          <div className="p-2 border-b">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar repositorio..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 h-9"
-                autoFocus
-              />
-            </div>
-          </div>
-
-          {/* Loading */}
-          {loadingRepos && (
-            <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Cargando repositorios...
-            </div>
-          )}
-
-          {/* Repo list */}
-          {!loadingRepos && !showCreateForm && (
-            <ScrollArea className="max-h-60">
-              <div className="p-1">
-                {filteredRepos.map((repo) => (
-                  <button
-                    key={repo.full_name}
-                    type="button"
-                    onClick={() => handleSelectRepo(repo.full_name, repo.default_branch)}
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground",
-                      value === repo.full_name && "bg-accent",
-                    )}
-                  >
-                    {repo.private ? (
-                      <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    ) : (
-                      <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    )}
-                    <span className="truncate">{repo.full_name}</span>
-                  </button>
-                ))}
-                {filteredRepos.length === 0 && !loadingRepos && (
-                  <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-                    No se encontraron repositorios
-                  </p>
-                )}
-              </div>
-            </ScrollArea>
-          )}
-
-          {/* Create form */}
-          {showCreateForm && (
-            <div className="p-3 space-y-3">
+  if (showCreateForm) {
+     return (
+        <div className="rounded-md border p-4 space-y-4 bg-muted/20">
+            <h4 className="text-sm font-medium">Crear nuevo repositorio</h4>
+            <div className="space-y-3">
               <div className="space-y-1">
-                <Label className="text-xs">Nombre del repositorio</Label>
+                <Label className="text-xs">Nombre</Label>
                 <Input
                   value={newRepoName}
                   onChange={(e) => setNewRepoName(e.target.value)}
@@ -174,16 +94,16 @@ export function RepoSelector({ value, onChange }: RepoSelectorProps) {
                   autoFocus
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={newRepoPrivate}
                   onChange={(e) => setNewRepoPrivate(e.target.checked)}
-                  className="rounded border-input"
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
                 />
-                Repositorio privado
+                <span className="text-muted-foreground">Privado</span>
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-2">
                 <Button
                   type="button"
                   size="sm"
@@ -200,30 +120,112 @@ export function RepoSelector({ value, onChange }: RepoSelectorProps) {
                   disabled={!newRepoName.trim() || createRepo.isPending}
                   className="flex-1"
                 >
-                  {createRepo.isPending ? "Creando..." : "Crear"}
+                  {createRepo.isPending ? "Creando..." : "Crear Repo"}
                 </Button>
               </div>
-              {createRepo.isError && (
-                <p className="text-xs text-destructive">Error al crear el repositorio</p>
+               {createRepo.isError && (
+                <p className="text-xs text-destructive">Error al crear el repositorio.</p>
               )}
             </div>
-          )}
-
-          {/* Footer: create new repo */}
-          {!showCreateForm && (
-            <div className="border-t p-1">
-              <button
-                type="button"
-                onClick={() => setShowCreateForm(true)}
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary hover:bg-accent"
-              >
-                <Plus className="h-4 w-4" />
-                Crear nuevo repositorio
-              </button>
-            </div>
-          )}
         </div>
-      )}
-    </div>
+     )
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+        >
+          {value ? (
+             <span className="flex items-center gap-2 truncate">
+                <Github className="h-4 w-4 shrink-0 opacity-50" />
+                {value}
+             </span>
+          ) : (
+            "Seleccionar repositorio..."
+          )}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0 z-[200]" align="start">
+        <div className="flex flex-col max-h-[300px]">
+          {/* Search Input */}
+          <div className="flex items-center border-b px-3 py-2 sticky top-0 bg-popover z-10">
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <input
+              className="flex h-9 w-full rounded-md bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Buscar repositorio..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          {/* List */}
+          <div className="overflow-y-auto overflow-x-hidden p-1">
+             {loadingRepos && (
+                <div className="flex items-center justify-center p-4">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+            )}
+            
+            {!loadingRepos && filteredRepos.length === 0 && (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                    No se encontraron repositorios.
+                </p>
+            )}
+
+            {!loadingRepos && filteredRepos.map((repo) => (
+                <div
+                    key={repo.full_name}
+                    className={cn(
+                        "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground transition-colors",
+                        value === repo.full_name && "bg-accent/50"
+                    )}
+                    onClick={() => handleSelectRepo(repo.full_name, repo.default_branch)}
+                    onMouseDown={(e) => {
+                        e.preventDefault(); // Prevent blur
+                    }}
+                >
+                    <Check
+                        className={cn(
+                        "mr-2 h-4 w-4",
+                        value === repo.full_name ? "opacity-100" : "opacity-0"
+                        )}
+                    />
+                    <div className="flex items-center gap-2 truncate flex-1">
+                         {repo.private ? (
+                            <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+                          ) : (
+                            <Globe className="h-3 w-3 text-muted-foreground shrink-0" />
+                          )}
+                        <span className="truncate">{repo.full_name}</span>
+                    </div>
+                </div>
+            ))}
+          </div>
+
+          <Separator />
+          
+          {/* Footer Action */}
+          <div className="p-1 sticky bottom-0 bg-popover border-t">
+              <div
+                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-primary transition-colors"
+                onClick={() => {
+                    setShowCreateForm(true);
+                    setOpen(false);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Crear nuevo repositorio
+              </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

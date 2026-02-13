@@ -1,9 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, LogOut, ChevronLeft, ChevronRight, Github } from "lucide-react";
+import { LayoutDashboard, Users, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useConnectGitHub } from "@/hooks/useGitHub";
 import { Button } from "@/components/ui/button";
+import { UserProfileDialog } from "@/components/user/UserProfileDialog";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -16,8 +16,7 @@ const navItems = [
 ];
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
-  const { user, signOut } = useAuth();
-  const connect = useConnectGitHub();
+  const { user } = useAuth();
 
   return (
     <aside
@@ -66,9 +65,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             {/* Active Indicator Strip */}
             {isOpen && (
                 <span className={cn(
-                    "absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-primary-foreground opacity-0 transition-opacity",
-                     // This strip only shows if active, but we handle active styling with bg-primary already.
-                     // Maybe for hover? Let's keep it simple for now. 
+                    "absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-primary-foreground transition-opacity opacity-0 group-aria-[current=page]:opacity-100"
                 )} />
             )}
           </NavLink>
@@ -78,49 +75,30 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       {/* User Footer */}
       <div className="border-t border-sidebar-border p-3">
         {user && (
-          <div className={cn("flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-sidebar-accent", !isOpen && "justify-center")}>
-            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                <span className="text-xs font-bold text-primary">
-                    {user.email?.[0].toUpperCase()}
-                </span>
-            </div>
-            
-            {isOpen && (
-                <div className="flex flex-1 flex-col overflow-hidden">
-                    <span className="truncate text-sm font-medium text-sidebar-foreground">
-                        {user.email?.split('@')[0]}
+          <UserProfileDialog>
+            <button className={cn("flex w-full items-center gap-3 rounded-lg p-2 transition-colors hover:bg-sidebar-accent outline-none cursor-pointer", !isOpen && "justify-center")}>
+                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold text-primary">
+                        {user.email?.[0].toUpperCase()}
                     </span>
-                    {user.github_connected ? (
-                      <span className="truncate text-xs text-muted-foreground flex items-center gap-1">
-                        <Github className="h-3 w-3" />
-                        @{user.github_username}
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => connect.mutate()}
-                        className="truncate text-xs text-primary hover:underline text-left flex items-center gap-1"
-                        disabled={connect.isPending}
-                      >
-                        <Github className="h-3 w-3" />
-                        Conectar GitHub
-                      </button>
-                    )}
                 </div>
-            )}
-            
-            {isOpen && (
-                <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8 ml-auto hover:text-destructive">
-                    <LogOut className="h-4 w-4" />
-                </Button>
-            )}
-          </div>
-        )}
-        {!isOpen && user && (
-            <div className="mt-2 flex justify-center">
-                 <Button variant="ghost" size="icon" onClick={signOut} title="Cerrar Sesión" className="hover:text-destructive">
-                    <LogOut className="h-4 w-4" />
-                </Button>
-            </div>
+                
+                {isOpen && (
+                    <div className="flex flex-1 flex-col overflow-hidden text-left">
+                        <span className="truncate text-sm font-medium text-sidebar-foreground">
+                            {user.email?.split('@')[0]}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
+                            Cuenta & Ajustes
+                        </span>
+                    </div>
+                )}
+                
+                {isOpen && (
+                     <Settings className="ml-auto h-4 w-4 text-muted-foreground" />
+                )}
+            </button>
+          </UserProfileDialog>
         )}
       </div>
     </aside>
