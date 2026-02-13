@@ -35,7 +35,8 @@
       "Bash(npm install:*)",
       "Bash(pnpm --filter web add:*)",
       "Bash(npm run typecheck:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npm test:*)"
     ]
   }
 }

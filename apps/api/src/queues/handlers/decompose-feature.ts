@@ -45,8 +45,6 @@ export async function handleDecomposeFeature(data: DecomposeFeatureData): Promis
       sequence_order: i + 1,
       title: t.title,
       description: t.description,
-      user_story: t.userStory,
-      acceptance_criteria: t.acceptanceCriteria,
       task_type: t.taskType,
       file_paths: t.filePaths,
       status: "to_do" as const,

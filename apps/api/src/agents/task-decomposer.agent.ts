@@ -5,9 +5,7 @@ import type { Feature } from "../models/feature.js";
 export interface TaskDecomposition {
   tasks: Array<{
     title: string;
-    userStory: string;
     description: string;
-    acceptanceCriteria: string[];
     taskType: string;
     filePaths: string[];
   }>;
@@ -21,9 +19,11 @@ export async function runTaskDecomposerAgent(opts: {
   const system = `You are a senior developer breaking down a feature into atomic tasks. Each task should be a single, focused change that can be implemented independently.
 
 Each task MUST include:
-1. A **userStory** in the format: "Como [rol], quiero [acción] para [beneficio]" — this provides business context so both AI agents and human developers understand the WHY.
-2. A **description** with detailed technical instructions: what to implement, which patterns to follow, specific code changes needed.
-3. **acceptanceCriteria**: an array of specific, testable criteria that define when this task is DONE. Write them as verifiable statements.
+1. A **description** with detailed technical instructions: what to implement, which patterns to follow, specific code changes needed.
+2. A **taskType** indicating the kind of change.
+3. **filePaths** listing the files affected.
+
+The user story and acceptance criteria are defined at the feature level (provided below). Tasks are purely technical — focus on WHAT to implement and HOW.
 
 Task types: create_file, modify_file, create_test, modify_test, create_config, delete_file
 
@@ -32,9 +32,7 @@ You must respond with valid JSON only, no other text. Use this exact format:
   "tasks": [
     {
       "title": "Short task title",
-      "userStory": "Como [rol], quiero [acción] para [beneficio]",
       "description": "Detailed technical description of what to do, including specific code changes, patterns to follow, and implementation details",
-      "acceptanceCriteria": ["El endpoint retorna 200 con los datos esperados", "Se valida el input con Zod", "..."],
       "taskType": "create_file|modify_file|create_test|etc",
       "filePaths": ["path/to/file.ts"]
     }
@@ -44,15 +42,23 @@ You must respond with valid JSON only, no other text. Use this exact format:
 Order tasks by dependency - tasks that create files others depend on should come first.
 Always include test tasks after implementation tasks.`;
 
+  const userStoryBlock = opts.feature.user_story
+    ? `\n**User Story:** ${opts.feature.user_story}`
+    : "";
+
+  const developerContextBlock = opts.feature.developer_context
+    ? `\n**Developer Context:** ${opts.feature.developer_context}`
+    : "";
+
   const userMessage = `Break down this feature into atomic tasks:
 
 **Feature:** ${opts.feature.title}
 
 **Description:** ${opts.feature.description}
-
+${userStoryBlock}
 **Acceptance Criteria:**
 ${(opts.feature.acceptance_criteria ?? []).map((c) => `- ${c}`).join("\n") || "None specified"}
-
+${developerContextBlock}
 **Existing file tree (relevant paths):**
 ${opts.fileTree.slice(0, 200).join("\n")}
 ${opts.fileTree.length > 200 ? `... and ${opts.fileTree.length - 200} more files` : ""}`;

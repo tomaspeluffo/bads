@@ -92,6 +92,8 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
       title: f.title,
       description: f.description,
       acceptance_criteria: f.acceptanceCriteria,
+      user_story: f.userStory,
+      developer_context: f.developerContext ?? null,
       status: "pending" as const,
       retry_count: 0,
     }));

@@ -84,8 +84,6 @@ export interface Task {
   sequence_order: number;
   title: string;
   description: string;
-  user_story: string | null;
-  acceptance_criteria: string[] | null;
   task_type: string;
   file_paths: string[] | null;
   status: TaskStatus;
@@ -102,6 +100,8 @@ export interface Feature {
   title: string;
   description: string;
   acceptance_criteria: string[] | null;
+  user_story: string | null;
+  developer_context: string | null;
   branch_name: string | null;
   pr_number: number | null;
   pr_url: string | null;

@@ -24,6 +24,8 @@ export interface PlannerReady {
     title: string;
     description: string;
     acceptanceCriteria: string[];
+    userStory: string;
+    developerContext?: string;
     estimatedComplexity: "low" | "medium" | "high";
   }>;
 }
@@ -105,6 +107,8 @@ Si el pitch está completo (Fase 2):
       "title": "Título corto del feature",
       "description": "Descripción detallada: qué construir, qué librerías usar, detalles clave de implementación",
       "acceptanceCriteria": ["Criterio específico y testeable, referenciando KPIs donde aplique"],
+      "userStory": "Como [rol], quiero [acción] para [beneficio]",
+      "developerContext": "Contexto técnico adicional para el desarrollador: patrones a seguir, restricciones, dependencias, notas de implementación",
       "estimatedComplexity": "low|medium|high"
     }
   ]

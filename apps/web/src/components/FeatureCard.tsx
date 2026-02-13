@@ -107,10 +107,24 @@ export function FeatureCard({ feature, onApprove, onReject, isDragOverlay }: Fea
         <Collapsible open={open} onOpenChange={setOpen}>
             <CollapsibleContent>
               <div className="space-y-4 pt-2">
+                 {feature.user_story && (
+                   <div>
+                     <h4 className="text-xs font-semibold text-muted-foreground mb-1">Historia de usuario</h4>
+                     <p className="text-sm text-foreground">{feature.user_story}</p>
+                   </div>
+                 )}
+
                  <div>
                     <h4 className="text-xs font-semibold text-muted-foreground mb-1">Descripción</h4>
                     <p className="text-sm text-foreground">{feature.description}</p>
                  </div>
+
+                 {feature.developer_context && (
+                   <div>
+                     <h4 className="text-xs font-semibold text-muted-foreground mb-1">Contexto para desarrollo</h4>
+                     <p className="text-sm text-foreground whitespace-pre-wrap">{feature.developer_context}</p>
+                   </div>
+                 )}
 
                  {feature.tasks.length > 0 && (
                     <div>

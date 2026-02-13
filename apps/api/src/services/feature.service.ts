@@ -3,8 +3,8 @@ import type { Feature, FeatureStatus, InsertFeature } from "../models/feature.js
 
 export async function createFeature(data: InsertFeature): Promise<Feature> {
   const result = await query<Feature>(
-    `INSERT INTO features (plan_id, initiative_id, sequence_order, title, description, acceptance_criteria, branch_name, status, retry_count)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO features (plan_id, initiative_id, sequence_order, title, description, acceptance_criteria, user_story, developer_context, branch_name, status, retry_count)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
     [
       data.plan_id,
@@ -13,6 +13,8 @@ export async function createFeature(data: InsertFeature): Promise<Feature> {
       data.title,
       data.description,
       data.acceptance_criteria ? JSON.stringify(data.acceptance_criteria) : null,
+      data.user_story ?? null,
+      data.developer_context ?? null,
       data.branch_name ?? null,
       data.status ?? "pending",
       data.retry_count ?? 0,
