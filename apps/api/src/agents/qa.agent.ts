@@ -83,5 +83,10 @@ ${filesContext}`;
     messages: [{ role: "user", content: userMessage }],
   });
 
-  return JSON.parse(result.content) as QAResult;
+  const cleaned = result.content
+    .replace(/^```(?:json)?\s*\n?/i, "")
+    .replace(/\n?```\s*$/i, "")
+    .trim();
+
+  return JSON.parse(cleaned) as QAResult;
 }

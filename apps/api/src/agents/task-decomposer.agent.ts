@@ -73,5 +73,14 @@ ${opts.fileTree.length > 200 ? `... and ${opts.fileTree.length - 200} more files
     messages: [{ role: "user", content: userMessage }],
   });
 
-  return JSON.parse(result.content) as TaskDecomposition;
+  if (result.stopReason === "max_tokens") {
+    throw new Error("Task decomposer response was truncated (max_tokens reached). The feature may be too complex.");
+  }
+
+  const cleaned = result.content
+    .replace(/^```(?:json)?\s*\n?/i, "")
+    .replace(/\n?```\s*$/i, "")
+    .trim();
+
+  return JSON.parse(cleaned) as TaskDecomposition;
 }
