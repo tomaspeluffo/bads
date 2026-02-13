@@ -18,7 +18,19 @@ export async function handleDevelopFeature(data: DevelopFeatureData): Promise<vo
 
   try {
     const octokit = await getOctokitForInitiative(initiativeId);
-    const branchName = feature.branch_name!;
+
+    // Ensure repo is initialized (handles empty repos)
+    await githubService.ensureRepoInitialized(targetRepo, baseBranch, octokit);
+
+    // Create branch if not yet assigned
+    let branchName = feature.branch_name;
+    if (!branchName) {
+      branchName = `feature/${featureId.slice(0, 8)}-${feature.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40)}`;
+      await githubService.createBranch(targetRepo, baseBranch, branchName, octokit);
+      await featureService.updateFeatureStatus(featureId, "developing", { branch_name: branchName });
+      log.info({ featureId, branchName }, "Branch created for feature");
+    }
+
     const tasks = await taskService.getTasksByFeature(featureId);
 
     // Process each task sequentially

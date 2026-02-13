@@ -70,8 +70,10 @@ export function createPipelineWorker() {
       "Job failed",
     );
 
-    // On final failure, ensure initiative status is set to "failed"
-    if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+    // Mark initiative as failed on final retry or unrecoverable errors (e.g. stalled jobs)
+    const isFinalAttempt = job && job.attemptsMade >= (job.opts.attempts ?? 1);
+    const isUnrecoverable = err?.name === "UnrecoverableError";
+    if (job && (isFinalAttempt || isUnrecoverable)) {
       const { data } = job;
       try {
         await initiativeService.updateInitiativeStatus(

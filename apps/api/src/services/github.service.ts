@@ -58,6 +58,62 @@ export async function getFileContent(
   throw new Error(`File ${path} is not a regular file`);
 }
 
+/**
+ * Ensures the repo has at least one commit on the base branch.
+ * Empty GitHub repos have no refs, so git operations fail.
+ * Creates an initial commit with a README if the repo is empty.
+ */
+export async function ensureRepoInitialized(
+  targetRepo: string,
+  baseBranch: string,
+  octokitOrToken?: Octokit | string,
+): Promise<void> {
+  const octokit = resolveOctokit(octokitOrToken);
+  const { owner, repo } = parseRepo(targetRepo);
+
+  try {
+    await octokit.git.getRef({ owner, repo, ref: `heads/${baseBranch}` });
+    // Branch exists, repo is initialized
+    return;
+  } catch (err: unknown) {
+    const status = (err as { status?: number }).status;
+    if (status !== 404 && status !== 409) throw err;
+  }
+
+  // Repo is empty — create initial commit
+  log.info({ targetRepo, baseBranch }, "Repo is empty, creating initial commit");
+
+  const { data: blob } = await octokit.git.createBlob({
+    owner,
+    repo,
+    content: Buffer.from(`# ${repo}\n`).toString("base64"),
+    encoding: "base64",
+  });
+
+  const { data: tree } = await octokit.git.createTree({
+    owner,
+    repo,
+    tree: [{ path: "README.md", mode: "100644", type: "blob", sha: blob.sha }],
+  });
+
+  const { data: commit } = await octokit.git.createCommit({
+    owner,
+    repo,
+    message: "Initial commit",
+    tree: tree.sha,
+    parents: [],
+  });
+
+  await octokit.git.createRef({
+    owner,
+    repo,
+    ref: `refs/heads/${baseBranch}`,
+    sha: commit.sha,
+  });
+
+  log.info({ targetRepo, baseBranch }, "Repo initialized with initial commit");
+}
+
 export async function createBranch(
   targetRepo: string,
   baseBranch: string,

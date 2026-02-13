@@ -26,7 +26,7 @@ export const QA_MAX_REJECTION_RETRIES = 2;
 export const QUEUE = {
   NAME: "initiative-pipeline",
   CONCURRENCY: 3,
-  LOCK_DURATION: 10 * 60 * 1000, // 10 min
+  LOCK_DURATION: 15 * 60 * 1000, // 15 min
   DEFAULT_ATTEMPTS: 3,
   BACKOFF: {
     TYPE: "exponential" as const,
