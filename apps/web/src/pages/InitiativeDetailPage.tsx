@@ -11,6 +11,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FeatureCard } from "@/components/FeatureCard";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
+import { FeatureKanbanBoard } from "@/components/kanban/FeatureKanbanBoard";
 import {
   useInitiativeDetail,
   useQuestions,
@@ -195,11 +196,11 @@ export function InitiativeDetailPage() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Plan v{initiative.plan.version}</CardTitle>
+              <CardTitle className="text-lg">Descripción de la Iniciativa</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {initiative.plan.summary}
+                {(initiative.raw_content as any)?.problem || (initiative.raw_content as any)?.description || "Sin descripción disponible."}
               </p>
               <p className="text-xs text-muted-foreground">
                 {initiative.plan.feature_count} features
@@ -316,15 +317,12 @@ export function InitiativeDetailPage() {
               Configura el repositorio para poder aprobar o rechazar features.
             </p>
           )}
-          <div className="grid gap-4 lg:grid-cols-2">
-            {initiative.features.map((feature) => (
-              <FeatureCard
-                key={feature.id}
-                feature={feature}
-                onApprove={(fid) => approve.mutate(fid)}
-                onReject={(fid, feedback) => reject.mutate({ featureId: fid, feedback })}
-              />
-            ))}
+          <div className="mt-4">
+             <FeatureKanbanBoard 
+              features={initiative.features}
+              onApprove={(fid) => approve.mutate(fid)}
+              onReject={(fid, feedback) => reject.mutate({ featureId: fid, feedback })}
+             />
           </div>
           <Separator />
         </>

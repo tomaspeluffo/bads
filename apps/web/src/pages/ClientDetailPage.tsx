@@ -1,11 +1,8 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Plus, Paperclip } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -16,351 +13,109 @@ import {
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useClient } from "@/hooks/useClients";
-import { useUploadInitiative } from "@/hooks/useInitiative";
-
-const ACCEPTED_FILE_TYPES = ".pdf,.doc,.docx,.txt,.md";
+import { InitiativeForm } from "@/components/initiatives/InitiativeForm";
 
 export function ClientDetailPage() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const { data: client, isLoading } = useClient(clientId!);
-  const upload = useUploadInitiative();
   const [open, setOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Form state
-  const [title, setTitle] = useState("");
-  const [problem, setProblem] = useState("");
-  const [solutionSketch, setSolutionSketch] = useState("");
-  const [noGos, setNoGos] = useState("");
-  const [risks, setRisks] = useState("");
-  const [successCriteria, setSuccessCriteria] = useState("");
-  const [techStack, setTechStack] = useState("");
-  const [additionalNotes, setAdditionalNotes] = useState("");
-  const [responsable, setResponsable] = useState("");
-  const [soporte, setSoporte] = useState("");
-  const [targetRepo, setTargetRepo] = useState("");
-  const [baseBranch, setBaseBranch] = useState("main");
-  const [files, setFiles] = useState<File[]>([]);
-
-  const resetForm = () => {
-    setTitle("");
-    setProblem("");
-    setSolutionSketch("");
-    setNoGos("");
-    setRisks("");
-    setSuccessCriteria("");
-    setTechStack("");
-    setAdditionalNotes("");
-    setResponsable("");
-    setSoporte("");
-    setTargetRepo("");
-    setBaseBranch("main");
-    setFiles([]);
-  };
-
-  const handleSubmit = () => {
-    upload.mutate(
-      {
-        title,
-        problem,
-        solutionSketch,
-        noGos: noGos ? noGos.split("\n").map((s) => s.trim()).filter(Boolean) : [],
-        risks: risks ? risks.split("\n").map((s) => s.trim()).filter(Boolean) : [],
-        successCriteria: successCriteria || undefined,
-        techStack: techStack || undefined,
-        additionalNotes: additionalNotes || undefined,
-        responsable,
-        soporte,
-        targetRepo: targetRepo || undefined,
-        baseBranch,
-        clientId,
-        files: files.length > 0 ? files : undefined,
-      },
-      {
-        onSuccess: (initiative) => {
-          setOpen(false);
-          resetForm();
-          navigate(`/clients/${clientId}/initiatives/${initiative.id}`);
-        },
-      },
-    );
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
-    }
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const canSubmit = title && problem && solutionSketch;
 
   if (isLoading) {
-    return <p className="text-muted-foreground">Cargando...</p>;
+    return (
+        <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+    );
   }
 
   if (!client) {
-    return <p className="text-muted-foreground">Cliente no encontrado.</p>;
+    return <p className="text-muted-foreground p-8">Cliente no encontrado.</p>;
   }
 
   return (
-    <div className="space-y-6">
-      <Breadcrumbs
-        items={[
-          { label: "Clientes", href: "/clients" },
-          { label: client.name },
-        ]}
-      />
-
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">{client.name}</h1>
-          {client.description && (
-            <p className="text-muted-foreground mt-1">{client.description}</p>
-          )}
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-4">
+             <Breadcrumbs
+                items={[
+                { label: "Clientes", href: "/clients" },
+                { label: client.name },
+                ]}
+            />
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">{client.name}</h1>
+            {client.description && (
+                <p className="text-muted-foreground text-lg">{client.description}</p>
+            )}
+          </div>
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button size="lg" className="shadow-sm">
+              <Plus className="mr-2 h-5 w-5" />
               Nueva Iniciativa
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] h-[800px] flex flex-col">
             <DialogHeader>
-              <DialogTitle>Nueva Iniciativa</DialogTitle>
+              <DialogTitle className="text-2xl">Nueva Iniciativa</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Titulo *</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ej: Sistema de notificaciones push"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="problem">Problema *</Label>
-                <Textarea
-                  id="problem"
-                  value={problem}
-                  onChange={(e) => setProblem(e.target.value)}
-                  placeholder="Describir el problema que resuelve esta iniciativa..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="solution">Solucion propuesta *</Label>
-                <Textarea
-                  id="solution"
-                  value={solutionSketch}
-                  onChange={(e) => setSolutionSketch(e.target.value)}
-                  placeholder="Describir a alto nivel como se resolveria..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="successCriteria">Definicion de exito / KPIs</Label>
-                <Textarea
-                  id="successCriteria"
-                  value={successCriteria}
-                  onChange={(e) => setSuccessCriteria(e.target.value)}
-                  placeholder="Como se mide el exito de esta iniciativa? Metricas, KPIs, criterios concretos..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="techStack">Stack tecnologico</Label>
-                <Textarea
-                  id="techStack"
-                  value={techStack}
-                  onChange={(e) => setTechStack(e.target.value)}
-                  placeholder="Tecnologias, frameworks, librerias. Ej: React + Node.js + PostgreSQL..."
-                  rows={2}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="noGos">No-gos (uno por linea)</Label>
-                  <Textarea
-                    id="noGos"
-                    value={noGos}
-                    onChange={(e) => setNoGos(e.target.value)}
-                    placeholder="Cosas que NO debe hacer..."
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="risks">Riesgos (uno por linea)</Label>
-                  <Textarea
-                    id="risks"
-                    value={risks}
-                    onChange={(e) => setRisks(e.target.value)}
-                    placeholder="Riesgos identificados..."
-                    rows={3}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="additionalNotes">Notas adicionales</Label>
-                <Textarea
-                  id="additionalNotes"
-                  value={additionalNotes}
-                  onChange={(e) => setAdditionalNotes(e.target.value)}
-                  placeholder="Costo estimado, timeline, fases, dependencias, cualquier otra info relevante..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="responsable">Responsable</Label>
-                  <Input
-                    id="responsable"
-                    value={responsable}
-                    onChange={(e) => setResponsable(e.target.value)}
-                    placeholder="Nombre del responsable"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="soporte">Soporte</Label>
-                  <Input
-                    id="soporte"
-                    value={soporte}
-                    onChange={(e) => setSoporte(e.target.value)}
-                    placeholder="Persona de soporte"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="targetRepo">Repositorio GitHub</Label>
-                  <Input
-                    id="targetRepo"
-                    value={targetRepo}
-                    onChange={(e) => setTargetRepo(e.target.value)}
-                    placeholder="owner/repo (opcional)"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Podés agregarlo despues si todavia no lo tenés.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="baseBranch">Branch base</Label>
-                  <Input
-                    id="baseBranch"
-                    value={baseBranch}
-                    onChange={(e) => setBaseBranch(e.target.value)}
-                    placeholder="main"
-                  />
-                </div>
-              </div>
-
-              {/* Archivos adjuntos */}
-              <div className="space-y-2">
-                <Label>Documentos de contexto</Label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={ACCEPTED_FILE_TYPES}
-                  multiple
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Paperclip className="mr-2 h-4 w-4" />
-                  Adjuntar archivo
-                </Button>
-                {files.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {files.map((file, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"
-                      >
-                        {file.name}
-                        <button
-                          type="button"
-                          onClick={() => removeFile(i)}
-                          className="ml-1 text-muted-foreground hover:text-foreground"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  PDF, Word, TXT o Markdown (max 10MB por archivo). Se extraera el texto para darle contexto al planificador.
-                </p>
-              </div>
-
-              {upload.isError && (
-                <p className="text-sm text-red-600">
-                  Error al crear la iniciativa. Verifica los datos e intenta de nuevo.
-                </p>
-              )}
-
-              <Button
-                onClick={handleSubmit}
-                disabled={!canSubmit || upload.isPending}
-                className="w-full"
-              >
-                {upload.isPending ? "Creando..." : "Crear Iniciativa"}
-              </Button>
-            </div>
+            
+            <InitiativeForm 
+                clientId={clientId!} 
+                onSuccess={(initiative) => {
+                    setOpen(false);
+                    navigate(`/clients/${clientId}/initiatives/${initiative.id}`);
+                }}
+                onCancel={() => setOpen(false)}
+            />
+            
           </DialogContent>
         </Dialog>
       </div>
 
-      <h2 className="text-xl font-semibold">Iniciativas</h2>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Iniciativas Activas</h2>
+            <span className="text-sm text-muted-foreground">{client.initiatives.length} iniciativas</span>
+        </div>
 
-      {client.initiatives.length === 0 && (
-        <p className="text-muted-foreground">
-          No hay iniciativas para este cliente todavia.
-        </p>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {client.initiatives.map((initiative) => (
-          <Link
-            key={initiative.id}
-            to={`/clients/${clientId}/initiatives/${initiative.id}`}
-          >
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base">{initiative.title}</CardTitle>
-                  <StatusBadge status={initiative.status} />
+        {client.initiatives.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed rounded-xl bg-muted/20">
+                <div className="bg-muted p-4 rounded-full mb-4">
+                    <Plus className="h-8 w-8 text-muted-foreground" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  Creada el {new Date(initiative.created_at).toLocaleDateString()}
+                <h3 className="text-lg font-medium">No hay iniciativas aún</h3>
+                <p className="text-muted-foreground mb-4 text-center max-w-sm">
+                Las iniciativas son proyectos o requerimientos que serán procesados por la IA.
                 </p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+                <Button variant="outline" onClick={() => setOpen(true)}>Crear la primera</Button>
+            </div>
+        ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {client.initiatives.map((initiative) => (
+                <Link
+                    key={initiative.id}
+                    to={`/clients/${clientId}/initiatives/${initiative.id}`}
+                    className="block group"
+                >
+                    <Card className="h-full hover:border-primary/50 hover:shadow-md transition-all duration-300">
+                    <CardHeader className="pb-3">
+                        <div className="flex justify-between items-start gap-4">
+                            <CardTitle className="text-lg font-semibold leading-tight">{initiative.title}</CardTitle>
+                            <StatusBadge status={initiative.status} />
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pb-3">
+                         {/* Description removed as per user request */}
+                    </CardContent>
+                    </Card>
+                </Link>
+                ))}
+            </div>
+        )}
       </div>
     </div>
   );

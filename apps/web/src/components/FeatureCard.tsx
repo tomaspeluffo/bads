@@ -28,18 +28,18 @@ export function FeatureCard({ feature, onApprove, onReject }: FeatureCardProps) 
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setOpen(!open)}>
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-base">{feature.title}</CardTitle>
+          <CardTitle className="text-base select-none">{feature.title}</CardTitle>
           <StatusBadge status={feature.status} />
         </div>
-        <p className="text-sm text-muted-foreground">{feature.description}</p>
         {feature.pr_url && (
           <a
             href={feature.pr_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1"
+            onClick={(e) => e.stopPropagation()}
           >
             PR #{feature.pr_number} <ExternalLink className="h-3 w-3" />
           </a>
@@ -81,33 +81,33 @@ export function FeatureCard({ feature, onApprove, onReject }: FeatureCardProps) 
           </div>
         )}
 
-        {feature.tasks.length > 0 && (
-          <Collapsible open={open} onOpenChange={setOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1 px-0">
-                {open ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                {feature.tasks.length} tasks
-              </Button>
-            </CollapsibleTrigger>
+        <Collapsible open={open} onOpenChange={setOpen}>
             <CollapsibleContent>
-              <div className="mt-2 space-y-1">
-                {feature.tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                  >
-                    <span>{task.title}</span>
-                    <StatusBadge status={task.status} />
-                  </div>
-                ))}
+              <div className="space-y-4 pt-2">
+                 <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground mb-1">Descripción</h4>
+                    <p className="text-sm text-foreground">{feature.description}</p>
+                 </div>
+
+                 {feature.tasks.length > 0 && (
+                    <div>
+                        <h4 className="text-xs font-semibold text-muted-foreground mb-1">Tareas ({feature.tasks.length})</h4>
+                        <div className="space-y-1">
+                            {feature.tasks.map((task) => (
+                            <div
+                                key={task.id}
+                                className="flex items-center justify-between rounded-md border px-3 py-2 text-sm bg-muted/30"
+                            >
+                                <span>{task.title}</span>
+                                <StatusBadge status={task.status} />
+                            </div>
+                            ))}
+                        </div>
+                    </div>
+                 )}
               </div>
             </CollapsibleContent>
-          </Collapsible>
-        )}
+        </Collapsible>
       </CardContent>
     </Card>
   );
