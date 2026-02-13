@@ -14,23 +14,20 @@ interface FeatureCardProps {
   feature: Feature;
   onApprove?: (featureId: string) => void;
   onReject?: (featureId: string, feedback: string) => void;
+  isDragOverlay?: boolean;
 }
 
-export function FeatureCard({ feature, onApprove, onReject }: FeatureCardProps) {
+export function FeatureCard({ feature, onApprove, onReject, isDragOverlay }: FeatureCardProps) {
   const [open, setOpen] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [feedback, setFeedback] = useState("");
 
-  const isDraggable = DRAGGABLE_STATUSES.includes(feature.status);
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const isDraggable = !isDragOverlay && DRAGGABLE_STATUSES.includes(feature.status);
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: feature.id,
     data: { feature },
     disabled: !isDraggable,
   });
-
-  const style = transform
-    ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 50 }
-    : undefined;
 
   const handleReject = () => {
     if (feedback.trim().length >= 10) {
@@ -42,9 +39,8 @@ export function FeatureCard({ feature, onApprove, onReject }: FeatureCardProps) 
 
   return (
     <Card
-      ref={setNodeRef}
-      style={style}
-      className={isDragging ? "opacity-50" : ""}
+      ref={isDragOverlay ? undefined : setNodeRef}
+      className={`${isDragging ? "opacity-30" : ""} ${isDragOverlay ? "shadow-lg rotate-2 cursor-grabbing" : ""}`}
     >
       <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setOpen(!open)}>
         <div className="flex items-start justify-between gap-2">

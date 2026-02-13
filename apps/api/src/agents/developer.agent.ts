@@ -93,16 +93,24 @@ When you are done implementing, provide a brief explanation of what you did and 
     ? `\n\n**IMPORTANT - Previous attempt was rejected with feedback:**\n${opts.rejectionFeedback}\n\nPlease address this feedback in your implementation.`
     : "";
 
+  const userStoryContext = opts.task.user_story
+    ? `\n**User Story:** ${opts.task.user_story}`
+    : "";
+
+  const taskAcceptanceCriteria = (opts.task.acceptance_criteria ?? []).length > 0
+    ? `\n**Criteria of Done:**\n${(opts.task.acceptance_criteria ?? []).map((c) => `- [ ] ${c}`).join("\n")}`
+    : "";
+
   const userMessage = `Implement this task:
 
 **Feature:** ${opts.feature.title}
 **Feature Description:** ${opts.feature.description}
-
+${userStoryContext}
 **Task:** ${opts.task.title}
 **Task Description:** ${opts.task.description}
 **Task Type:** ${opts.task.task_type}
 **Target Files:** ${(opts.task.file_paths ?? []).join(", ") || "To be determined"}
-${previousContext}${rejectionContext}`;
+${taskAcceptanceCriteria}${previousContext}${rejectionContext}`;
 
   const handleToolUse = async (
     name: string,

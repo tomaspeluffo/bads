@@ -3,14 +3,16 @@ import type { Task, TaskStatus, InsertTask } from "../models/task.js";
 
 export async function createTask(data: InsertTask): Promise<Task> {
   const result = await query<Task>(
-    `INSERT INTO tasks (feature_id, sequence_order, title, description, task_type, file_paths, status, agent_output)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO tasks (feature_id, sequence_order, title, description, user_story, acceptance_criteria, task_type, file_paths, status, agent_output)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
     [
       data.feature_id,
       data.sequence_order,
       data.title,
       data.description,
+      data.user_story ?? null,
+      data.acceptance_criteria ? JSON.stringify(data.acceptance_criteria) : null,
       data.task_type,
       data.file_paths ?? null,
       data.status ?? "to_do",

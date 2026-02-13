@@ -5,7 +5,9 @@ import type { Feature } from "../models/feature.js";
 export interface TaskDecomposition {
   tasks: Array<{
     title: string;
+    userStory: string;
     description: string;
+    acceptanceCriteria: string[];
     taskType: string;
     filePaths: string[];
   }>;
@@ -18,6 +20,11 @@ export async function runTaskDecomposerAgent(opts: {
 }): Promise<TaskDecomposition> {
   const system = `You are a senior developer breaking down a feature into atomic tasks. Each task should be a single, focused change that can be implemented independently.
 
+Each task MUST include:
+1. A **userStory** in the format: "Como [rol], quiero [acción] para [beneficio]" — this provides business context so both AI agents and human developers understand the WHY.
+2. A **description** with detailed technical instructions: what to implement, which patterns to follow, specific code changes needed.
+3. **acceptanceCriteria**: an array of specific, testable criteria that define when this task is DONE. Write them as verifiable statements.
+
 Task types: create_file, modify_file, create_test, modify_test, create_config, delete_file
 
 You must respond with valid JSON only, no other text. Use this exact format:
@@ -25,7 +32,9 @@ You must respond with valid JSON only, no other text. Use this exact format:
   "tasks": [
     {
       "title": "Short task title",
-      "description": "Detailed description of what to do, including specific code changes",
+      "userStory": "Como [rol], quiero [acción] para [beneficio]",
+      "description": "Detailed technical description of what to do, including specific code changes, patterns to follow, and implementation details",
+      "acceptanceCriteria": ["El endpoint retorna 200 con los datos esperados", "Se valida el input con Zod", "..."],
       "taskType": "create_file|modify_file|create_test|etc",
       "filePaths": ["path/to/file.ts"]
     }

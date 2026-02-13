@@ -8,6 +8,7 @@ interface FeatureKanbanColumnProps {
   columnId: string;
   title: string;
   features: Feature[];
+  activeFeatureId?: string;
   onApprove?: (featureId: string) => void;
   onReject?: (featureId: string, feedback: string) => void;
 }
@@ -16,6 +17,7 @@ export function FeatureKanbanColumn({
   columnId,
   title,
   features,
+  activeFeatureId,
   onApprove,
   onReject
 }: FeatureKanbanColumnProps) {

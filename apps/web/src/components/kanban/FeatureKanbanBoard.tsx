@@ -2,6 +2,7 @@ import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useState } from "react";
 import { FeatureKanbanColumn } from "./FeatureKanbanColumn";
+import { FeatureCard } from "@/components/FeatureCard";
 import type { Feature, FeatureStatus } from "@/types";
 
 interface FeatureKanbanBoardProps {
@@ -97,12 +98,18 @@ export function FeatureKanbanBoard({ features, onApprove, onReject, onMove }: Fe
               columnId={col.id}
               title={col.title}
               features={colFeatures}
+              activeFeatureId={activeFeature?.id}
               onApprove={onApprove}
               onReject={onReject}
             />
           );
         })}
       </div>
+      <DragOverlay dropAnimation={null}>
+        {activeFeature ? (
+          <FeatureCard feature={activeFeature} isDragOverlay />
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

@@ -84,6 +84,8 @@ export interface Task {
   sequence_order: number;
   title: string;
   description: string;
+  user_story: string | null;
+  acceptance_criteria: string[] | null;
   task_type: string;
   file_paths: string[] | null;
   status: TaskStatus;
