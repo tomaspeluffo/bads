@@ -1,4 +1,5 @@
-import { getOctokit } from "../lib/github.js";
+import type { Octokit } from "@octokit/rest";
+import { getOctokit, createOctokit } from "../lib/github.js";
 import { createChildLogger } from "../lib/logger.js";
 
 const log = createChildLogger({ service: "github" });
@@ -8,11 +9,18 @@ function parseRepo(repo: string): { owner: string; repo: string } {
   return { owner, repo: name };
 }
 
+function resolveOctokit(octokitOrToken?: Octokit | string): Octokit {
+  if (!octokitOrToken) return getOctokit();
+  if (typeof octokitOrToken === "string") return createOctokit(octokitOrToken);
+  return octokitOrToken;
+}
+
 export async function getFileTree(
   targetRepo: string,
   branch: string,
+  octokitOrToken?: Octokit | string,
 ): Promise<string[]> {
-  const octokit = getOctokit();
+  const octokit = resolveOctokit(octokitOrToken);
   const { owner, repo } = parseRepo(targetRepo);
 
   const { data } = await octokit.git.getTree({
@@ -31,8 +39,9 @@ export async function getFileContent(
   targetRepo: string,
   branch: string,
   path: string,
+  octokitOrToken?: Octokit | string,
 ): Promise<string> {
-  const octokit = getOctokit();
+  const octokit = resolveOctokit(octokitOrToken);
   const { owner, repo } = parseRepo(targetRepo);
 
   const { data } = await octokit.repos.getContent({
@@ -53,8 +62,9 @@ export async function createBranch(
   targetRepo: string,
   baseBranch: string,
   newBranch: string,
+  octokitOrToken?: Octokit | string,
 ): Promise<void> {
-  const octokit = getOctokit();
+  const octokit = resolveOctokit(octokitOrToken);
   const { owner, repo } = parseRepo(targetRepo);
 
   // Get the SHA of the base branch
@@ -86,8 +96,9 @@ export async function commitFiles(
   branch: string,
   files: FileChange[],
   message: string,
+  octokitOrToken?: Octokit | string,
 ): Promise<string> {
-  const octokit = getOctokit();
+  const octokit = resolveOctokit(octokitOrToken);
   const { owner, repo } = parseRepo(targetRepo);
 
   // Get current commit SHA
@@ -168,8 +179,9 @@ export async function getBranchDiff(
   targetRepo: string,
   baseBranch: string,
   headBranch: string,
+  octokitOrToken?: Octokit | string,
 ): Promise<string> {
-  const octokit = getOctokit();
+  const octokit = resolveOctokit(octokitOrToken);
   const { owner, repo } = parseRepo(targetRepo);
 
   const { data } = await octokit.repos.compareCommits({
@@ -188,8 +200,9 @@ export async function getChangedFiles(
   targetRepo: string,
   headBranch: string,
   baseBranch: string,
+  octokitOrToken?: Octokit | string,
 ): Promise<Array<{ filename: string; content: string }>> {
-  const octokit = getOctokit();
+  const octokit = resolveOctokit(octokitOrToken);
   const { owner, repo } = parseRepo(targetRepo);
 
   const { data } = await octokit.repos.compareCommits({
@@ -204,7 +217,7 @@ export async function getChangedFiles(
   for (const file of data.files ?? []) {
     if (file.status === "removed") continue;
     try {
-      const content = await getFileContent(targetRepo, headBranch, file.filename);
+      const content = await getFileContent(targetRepo, headBranch, file.filename, octokit);
       results.push({ filename: file.filename, content });
     } catch {
       // File might be binary or too large
@@ -220,8 +233,9 @@ export async function createPullRequest(
   baseBranch: string,
   title: string,
   body: string,
+  octokitOrToken?: Octokit | string,
 ): Promise<{ number: number; url: string }> {
-  const octokit = getOctokit();
+  const octokit = resolveOctokit(octokitOrToken);
   const { owner, repo } = parseRepo(targetRepo);
 
   const { data } = await octokit.pulls.create({
@@ -240,8 +254,9 @@ export async function createPullRequest(
 export async function mergePullRequest(
   targetRepo: string,
   prNumber: number,
+  octokitOrToken?: Octokit | string,
 ): Promise<void> {
-  const octokit = getOctokit();
+  const octokit = resolveOctokit(octokitOrToken);
   const { owner, repo } = parseRepo(targetRepo);
 
   await octokit.pulls.merge({
@@ -258,8 +273,9 @@ export async function listDirectoryContents(
   targetRepo: string,
   branch: string,
   path: string,
+  octokitOrToken?: Octokit | string,
 ): Promise<string[]> {
-  const octokit = getOctokit();
+  const octokit = resolveOctokit(octokitOrToken);
   const { owner, repo } = parseRepo(targetRepo);
 
   const { data } = await octokit.repos.getContent({
@@ -276,8 +292,9 @@ export async function listDirectoryContents(
 export async function searchCode(
   targetRepo: string,
   query: string,
+  octokitOrToken?: Octokit | string,
 ): Promise<Array<{ path: string; matches: string[] }>> {
-  const octokit = getOctokit();
+  const octokit = resolveOctokit(octokitOrToken);
   const { owner, repo } = parseRepo(targetRepo);
 
   const { data } = await octokit.search.code({
@@ -289,4 +306,55 @@ export async function searchCode(
     path: item.path,
     matches: (item.text_matches ?? []).map((m) => m.fragment ?? ""),
   }));
+}
+
+// --- User-specific functions ---
+
+export async function listUserRepos(
+  token: string,
+): Promise<Array<{ full_name: string; private: boolean; default_branch: string }>> {
+  const octokit = createOctokit(token);
+
+  const repos: Array<{ full_name: string; private: boolean; default_branch: string }> = [];
+  let page = 1;
+
+  while (true) {
+    const { data } = await octokit.repos.listForAuthenticatedUser({
+      sort: "updated",
+      per_page: 100,
+      page,
+    });
+
+    if (data.length === 0) break;
+
+    for (const r of data) {
+      repos.push({
+        full_name: r.full_name,
+        private: r.private,
+        default_branch: r.default_branch,
+      });
+    }
+
+    if (data.length < 100) break;
+    page++;
+  }
+
+  return repos;
+}
+
+export async function createRepo(
+  name: string,
+  isPrivate: boolean,
+  token: string,
+): Promise<{ full_name: string; default_branch: string }> {
+  const octokit = createOctokit(token);
+
+  const { data } = await octokit.repos.createForAuthenticatedUser({
+    name,
+    private: isPrivate,
+    auto_init: true,
+  });
+
+  log.info({ repoName: data.full_name }, "Repo created");
+  return { full_name: data.full_name, default_branch: data.default_branch };
 }

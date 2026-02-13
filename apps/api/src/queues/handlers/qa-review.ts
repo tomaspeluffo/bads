@@ -4,6 +4,7 @@ import * as featureService from "../../services/feature.service.js";
 import * as initiativeService from "../../services/initiative.service.js";
 import { runQAAgent } from "../../agents/qa.agent.js";
 import * as githubService from "../../services/github.service.js";
+import { getOctokitForInitiative } from "../../services/github-token.service.js";
 import { QA_MAX_REJECTION_RETRIES } from "../../config/constants.js";
 import { createChildLogger } from "../../lib/logger.js";
 
@@ -21,11 +22,14 @@ export async function handleQAReview(data: QAReviewData): Promise<void> {
     const initiative = await initiativeService.getInitiativeById(initiativeId);
     if (!initiative) throw new Error(`Initiative ${initiativeId} not found`);
 
+    const octokit = await getOctokitForInitiative(initiativeId);
+
     // Get diff
     const diff = await githubService.getBranchDiff(
       targetRepo,
       baseBranch,
       feature.branch_name!,
+      octokit,
     );
 
     // Get changed files content
@@ -33,6 +37,7 @@ export async function handleQAReview(data: QAReviewData): Promise<void> {
       targetRepo,
       feature.branch_name!,
       baseBranch,
+      octokit,
     );
 
     // Run QA Agent
@@ -54,6 +59,7 @@ export async function handleQAReview(data: QAReviewData): Promise<void> {
         baseBranch,
         `[BADS] ${feature.title}`,
         formatPRDescription(feature, qaResult),
+        octokit,
       );
 
       await featureService.updateFeatureStatus(featureId, "human_review", {

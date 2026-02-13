@@ -2,6 +2,7 @@ import type { DecomposeFeatureData } from "../jobs.js";
 import * as featureService from "../../services/feature.service.js";
 import * as taskService from "../../services/task.service.js";
 import { runTaskDecomposerAgent } from "../../agents/task-decomposer.agent.js";
+import { getOctokitForInitiative } from "../../services/github-token.service.js";
 import { createChildLogger } from "../../lib/logger.js";
 
 const log = createChildLogger({ handler: "decompose-feature" });
@@ -20,7 +21,8 @@ export async function handleDecomposeFeature(data: DecomposeFeatureData): Promis
     if (targetRepo) {
       try {
         const githubService = await import("../../services/github.service.js");
-        fileTree = await githubService.getFileTree(targetRepo, data.baseBranch);
+        const octokit = await getOctokitForInitiative(initiativeId);
+        fileTree = await githubService.getFileTree(targetRepo, data.baseBranch, octokit);
         log.info({ featureId, targetRepo, fileCount: fileTree.length }, "Fetched codebase context");
       } catch (err) {
         log.warn({ err, featureId, targetRepo }, "No se pudo obtener el file tree de GitHub, continuando sin contexto de codebase");

@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { FeatureCard } from "@/components/FeatureCard";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { FeatureKanbanBoard } from "@/components/kanban/FeatureKanbanBoard";
+import { RepoSelector } from "@/components/RepoSelector";
 import {
   useInitiativeDetail,
   useQuestions,
@@ -152,12 +153,13 @@ export function InitiativeDetailPage() {
             </p>
             <div className="flex gap-2 items-end">
               <div className="flex-1 space-y-1">
-                <Label htmlFor="repoInput" className="text-xs">Repositorio</Label>
-                <Input
-                  id="repoInput"
+                <Label className="text-xs">Repositorio</Label>
+                <RepoSelector
                   value={repoInput}
-                  onChange={(e) => setRepoInput(e.target.value)}
-                  placeholder="owner/repo"
+                  onChange={(repo, defaultBranch) => {
+                    setRepoInput(repo);
+                    if (defaultBranch) setBranchInput(defaultBranch);
+                  }}
                 />
               </div>
               <div className="w-32 space-y-1">

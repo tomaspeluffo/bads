@@ -118,6 +118,15 @@ export const LoginBody = z.object({
 
 export type LoginBody = z.infer<typeof LoginBody>;
 
+// --- GitHub ---
+
+export const CreateRepoBody = z.object({
+  name: z.string().min(1).regex(/^[a-zA-Z0-9._-]+$/, "Nombre de repositorio inválido"),
+  isPrivate: z.boolean().default(false),
+});
+
+export type CreateRepoBody = z.infer<typeof CreateRepoBody>;
+
 // --- Webhooks ---
 
 export const NotionWebhookBody = z.object({}).passthrough();

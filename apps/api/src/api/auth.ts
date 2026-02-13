@@ -54,7 +54,21 @@ authRouter.get(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const user = (req as typeof req & { user: AuthUser }).user;
-    res.json({ user });
+
+    const result = await query<{ github_username: string | null; github_access_token: string | null }>(
+      "SELECT github_username, github_access_token FROM users WHERE id = $1",
+      [user.id],
+    );
+
+    const row = result.rows[0];
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        github_username: row?.github_username ?? null,
+        github_connected: !!row?.github_access_token,
+      },
+    });
   }),
 );
 

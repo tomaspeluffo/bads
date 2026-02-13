@@ -1,7 +1,8 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, LogOut, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, ChevronLeft, ChevronRight, Github } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useConnectGitHub } from "@/hooks/useGitHub";
 import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
@@ -16,6 +17,7 @@ const navItems = [
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const { user, signOut } = useAuth();
+  const connect = useConnectGitHub();
 
   return (
     <aside
@@ -88,9 +90,21 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     <span className="truncate text-sm font-medium text-sidebar-foreground">
                         {user.email?.split('@')[0]}
                     </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                        Admin
-                    </span>
+                    {user.github_connected ? (
+                      <span className="truncate text-xs text-muted-foreground flex items-center gap-1">
+                        <Github className="h-3 w-3" />
+                        @{user.github_username}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => connect.mutate()}
+                        className="truncate text-xs text-primary hover:underline text-left flex items-center gap-1"
+                        disabled={connect.isPending}
+                      >
+                        <Github className="h-3 w-3" />
+                        Conectar GitHub
+                      </button>
+                    )}
                 </div>
             )}
             

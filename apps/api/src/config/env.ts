@@ -25,6 +25,13 @@ const envSchema = z.object({
   // GitHub
   GITHUB_TOKEN: z.string().min(1).optional(),
 
+  // GitHub OAuth
+  GITHUB_CLIENT_ID: z.string().min(1).optional(),
+  GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
+
+  // Frontend URL (for OAuth redirects)
+  FRONTEND_URL: z.string().default("http://localhost:5173"),
+
   // Notion Webhook
   NOTION_WEBHOOK_SECRET: z.string().min(1).optional(),
 });

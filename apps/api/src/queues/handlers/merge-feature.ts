@@ -2,6 +2,7 @@ import type { MergeFeatureData } from "../jobs.js";
 import { enqueueDecomposeFeature, enqueueCompleteInitiative } from "../jobs.js";
 import * as featureService from "../../services/feature.service.js";
 import * as githubService from "../../services/github.service.js";
+import { getOctokitForInitiative } from "../../services/github-token.service.js";
 import { createChildLogger } from "../../lib/logger.js";
 
 const log = createChildLogger({ handler: "merge-feature" });
@@ -15,10 +16,12 @@ export async function handleMergeFeature(data: MergeFeatureData): Promise<void> 
     const feature = await featureService.getFeatureById(featureId);
     if (!feature) throw new Error(`Feature ${featureId} not found`);
 
+    const octokit = await getOctokitForInitiative(initiativeId);
+
     // Merge the PR
     if (feature.pr_number) {
       log.info({ featureId, prNumber: feature.pr_number }, "Merging PR");
-      await githubService.mergePullRequest(targetRepo, feature.pr_number);
+      await githubService.mergePullRequest(targetRepo, feature.pr_number, octokit);
     }
 
     await featureService.updateFeatureStatus(featureId, "merged");

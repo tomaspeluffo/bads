@@ -4,6 +4,7 @@ import * as featureService from "../../services/feature.service.js";
 import * as taskService from "../../services/task.service.js";
 import { runDeveloperAgent } from "../../agents/developer.agent.js";
 import * as githubService from "../../services/github.service.js";
+import { getOctokitForInitiative } from "../../services/github-token.service.js";
 import { createChildLogger } from "../../lib/logger.js";
 
 const log = createChildLogger({ handler: "develop-feature" });
@@ -17,6 +18,7 @@ export async function handleDevelopFeature(data: DevelopFeatureData): Promise<vo
   await featureService.updateFeatureStatus(featureId, "developing");
 
   try {
+    const octokit = await getOctokitForInitiative(initiativeId);
     const branchName = feature.branch_name!;
     const tasks = await taskService.getTasksByFeature(featureId);
 
@@ -41,6 +43,7 @@ export async function handleDevelopFeature(data: DevelopFeatureData): Promise<vo
         targetRepo,
         previousTaskOutputs: previousTasks.map((t) => t.agent_output!),
         rejectionFeedback: rejectionFeedback ?? undefined,
+        octokit,
       });
 
       // Commit changes
@@ -50,6 +53,7 @@ export async function handleDevelopFeature(data: DevelopFeatureData): Promise<vo
           branchName,
           result.files,
           `feat(${feature.title}): ${task.title}`,
+          octokit,
         );
       }
 

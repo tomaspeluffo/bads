@@ -9,6 +9,7 @@ import { memoryRouter } from "./api/memory.js";
 import { webhookRouter } from "./api/webhooks.js";
 import { clientRouter } from "./api/clients.js";
 import { authRouter } from "./api/auth.js";
+import { githubRouter } from "./api/github.js";
 import { errorHandler } from "./middleware/error-handler.js";
 
 export const app = express();
@@ -25,6 +26,7 @@ app.use("/api", featureRouter);
 app.use("/api", memoryRouter);
 app.use("/api", clientRouter);
 app.use("/api", authRouter);
+app.use("/api", githubRouter);
 app.use("/api", webhookRouter);
 
 // Error handler (must be last)

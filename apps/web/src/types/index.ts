@@ -29,6 +29,14 @@ export type TaskStatus = "to_do" | "doing" | "review" | "done" | "failed";
 export interface AuthUser {
   id: string;
   email?: string;
+  github_username?: string | null;
+  github_connected?: boolean;
+}
+
+export interface GitHubRepo {
+  full_name: string;
+  private: boolean;
+  default_branch: string;
 }
 
 // --- Core entities ---

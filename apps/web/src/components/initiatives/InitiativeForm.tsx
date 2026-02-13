@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useUploadInitiative } from "@/hooks/useInitiative";
+import { RepoSelector } from "@/components/RepoSelector";
 
 interface InitiativeFormProps {
   clientId: string;
@@ -198,12 +199,13 @@ export function InitiativeForm({ clientId, onSuccess, onCancel }: InitiativeForm
             </div>
              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="targetRepo">Repositorio GitHub</Label>
-                  <Input
-                    id="targetRepo"
+                  <Label>Repositorio GitHub</Label>
+                  <RepoSelector
                     value={formData.targetRepo}
-                    onChange={(e) => handleChange("targetRepo", e.target.value)}
-                    placeholder="owner/repo"
+                    onChange={(repo, defaultBranch) => {
+                      handleChange("targetRepo", repo);
+                      if (defaultBranch) handleChange("baseBranch", defaultBranch);
+                    }}
                   />
                 </div>
                 <div className="space-y-2">

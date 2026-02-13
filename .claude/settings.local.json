@@ -30,7 +30,8 @@
       "Bash(python:*)",
       "Bash(find:*)",
       "Bash(pnpm add:*)",
-      "Bash(pnpm remove:*)"
+      "Bash(pnpm remove:*)",
+      "Bash(npm run lint)"
     ]
   }
 }

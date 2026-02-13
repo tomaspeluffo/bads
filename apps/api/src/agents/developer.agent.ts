@@ -1,5 +1,6 @@
 import { callAgentWithTools } from "./base-agent.js";
 import { MODELS, MAX_TOKENS } from "../config/constants.js";
+import type { Octokit } from "@octokit/rest";
 import * as githubService from "../services/github.service.js";
 import type { Task } from "../models/task.js";
 import type { Feature } from "../models/feature.js";
@@ -66,6 +67,7 @@ export async function runDeveloperAgent(opts: {
   targetRepo: string;
   previousTaskOutputs: Record<string, unknown>[];
   rejectionFeedback?: string;
+  octokit?: Octokit;
 }): Promise<DeveloperResult> {
   const pendingFiles: githubService.FileChange[] = [];
 
@@ -112,7 +114,7 @@ ${previousContext}${rejectionContext}`;
         // Check pending files first (written in this session)
         const pending = pendingFiles.find((f) => f.path === path);
         if (pending) return pending.content;
-        return githubService.getFileContent(opts.targetRepo, opts.branchName, path);
+        return githubService.getFileContent(opts.targetRepo, opts.branchName, path, opts.octokit);
       }
       case "write_file": {
         const path = input.path as string;
@@ -136,12 +138,13 @@ ${previousContext}${rejectionContext}`;
           opts.targetRepo,
           opts.branchName,
           path,
+          opts.octokit,
         );
         return files.join("\n");
       }
       case "search_codebase": {
         const query = input.query as string;
-        const results = await githubService.searchCode(opts.targetRepo, query);
+        const results = await githubService.searchCode(opts.targetRepo, query, opts.octokit);
         return results
           .map((r) => `${r.path}:\n${r.matches.join("\n")}`)
           .join("\n\n");

@@ -4,6 +4,7 @@ import type {
   AuthUser,
   Client,
   ClientWithInitiatives,
+  GitHubRepo,
   InitiativeDetail,
   QuestionsResponse,
   Initiative,
@@ -56,6 +57,33 @@ export async function fetchMe(): Promise<AuthUser> {
 export async function logout(): Promise<void> {
   await api.post("/auth/logout");
   clearToken();
+}
+
+// --- GitHub ---
+
+export async function fetchGitHubAuthUrl(): Promise<string> {
+  const { data } = await api.get<{ url: string }>("/auth/github");
+  return data.url;
+}
+
+export async function disconnectGitHub(): Promise<void> {
+  await api.delete("/auth/github");
+}
+
+export async function fetchGitHubRepos(): Promise<GitHubRepo[]> {
+  const { data } = await api.get<{ data: GitHubRepo[] }>("/github/repos");
+  return data.data;
+}
+
+export async function createGitHubRepo(
+  name: string,
+  isPrivate: boolean,
+): Promise<{ full_name: string; default_branch: string }> {
+  const { data } = await api.post<{ full_name: string; default_branch: string }>(
+    "/github/repos",
+    { name, isPrivate },
+  );
+  return data;
 }
 
 // --- Clients ---
