@@ -5,6 +5,7 @@ import { asyncHandler, AppError } from "../middleware/error-handler.js";
 import { FeatureActionParams, RejectFeatureBody, MoveFeatureBody } from "../models/api-schemas.js";
 import * as featureService from "../services/feature.service.js";
 import * as initiativeService from "../services/initiative.service.js";
+import * as taskService from "../services/task.service.js";
 import { enqueueMergeFeature, enqueueDevelopFeature, enqueueDecomposeFeature, enqueueQAReview } from "../queues/jobs.js";
 
 export const featureRouter = Router();
@@ -121,14 +122,36 @@ featureRouter.post(
       }
 
       await initiativeService.updateInitiativeStatus(id, "in_progress");
-      await enqueueDecomposeFeature({
-        initiativeId: id,
-        featureId: fid,
-        targetRepo: metadata.targetRepo,
-        baseBranch: metadata.baseBranch ?? "main",
-      });
 
-      res.json({ message: "Feature movida a In Progress, decompose iniciado" });
+      // If feature already has tasks (failed during development), retry development
+      // instead of re-decomposing from scratch
+      const existingTasks = await taskService.getTasksByFeature(fid);
+      if (existingTasks.length > 0) {
+        // Reset failed tasks to to_do so they get picked up again
+        for (const task of existingTasks) {
+          if (task.status === "failed" || task.status === "doing") {
+            await taskService.updateTaskStatus(task.id, "to_do");
+          }
+        }
+
+        await enqueueDevelopFeature({
+          initiativeId: id,
+          featureId: fid,
+          targetRepo: metadata.targetRepo,
+          baseBranch: metadata.baseBranch ?? "main",
+        });
+
+        res.json({ message: "Feature movida a In Progress, retomando desarrollo" });
+      } else {
+        await enqueueDecomposeFeature({
+          initiativeId: id,
+          featureId: fid,
+          targetRepo: metadata.targetRepo,
+          baseBranch: metadata.baseBranch ?? "main",
+        });
+
+        res.json({ message: "Feature movida a In Progress, decompose iniciado" });
+      }
     } else {
       // targetColumn === "review"
       if (feature.status !== "developing") {

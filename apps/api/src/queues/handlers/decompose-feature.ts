@@ -1,4 +1,4 @@
-import type { DecomposeFeatureData } from "../jobs.js";
+import { type DecomposeFeatureData, enqueueDevelopFeature } from "../jobs.js";
 import * as featureService from "../../services/feature.service.js";
 import * as taskService from "../../services/task.service.js";
 import { runTaskDecomposerAgent } from "../../agents/task-decomposer.agent.js";
@@ -52,10 +52,17 @@ export async function handleDecomposeFeature(data: DecomposeFeatureData): Promis
 
     await taskService.createTasks(taskInserts);
 
-    // 4. Mark feature as decomposed (branch creation and development happen later when GitHub is needed)
+    // 4. Mark feature as decomposed and enqueue development
     await featureService.updateFeatureStatus(featureId, "developing");
 
-    log.info({ featureId, taskCount: taskInserts.length }, "Feature decomposed");
+    await enqueueDevelopFeature({
+      initiativeId,
+      featureId,
+      targetRepo,
+      baseBranch: data.baseBranch,
+    });
+
+    log.info({ featureId, taskCount: taskInserts.length }, "Feature decomposed, development enqueued");
   } catch (err) {
     log.error({ err, featureId }, "Decompose feature failed");
     await featureService.updateFeatureStatus(featureId, "failed");

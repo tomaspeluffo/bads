@@ -74,6 +74,14 @@ export async function handleDevelopFeature(data: DevelopFeatureData): Promise<vo
 
     log.info({ featureId }, "Feature development completed, awaiting manual move to review");
   } catch (err) {
+    // Mark the current task as failed if one was in progress
+    const tasks = await taskService.getTasksByFeature(featureId);
+    const doingTask = tasks.find((t) => t.status === "doing");
+    if (doingTask) {
+      await taskService.updateTaskStatus(doingTask.id, "failed");
+      log.warn({ taskId: doingTask.id, taskTitle: doingTask.title }, "Task marked as failed");
+    }
+
     log.error({ err, featureId }, "Develop feature failed");
     await featureService.updateFeatureStatus(featureId, "failed");
     throw err;
