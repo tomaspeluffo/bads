@@ -3,6 +3,7 @@ import {
   fetchInitiativeDetail,
   fetchQuestions,
   submitReplan,
+  reuploadInitiative,
   approveFeature,
   rejectFeature,
   moveFeature,
@@ -10,7 +11,7 @@ import {
   deleteInitiative,
   updateInitiativeRepo,
 } from "@/lib/api";
-import type { UploadInitiativeInput } from "@/lib/api";
+import type { UploadInitiativeInput, ReuploadInitiativeInput } from "@/lib/api";
 
 export function useInitiativeDetail(id: string) {
   return useQuery({
@@ -55,6 +56,20 @@ export function useReplan(initiativeId: string) {
   return useMutation({
     mutationFn: ({ additionalContext, files }: { additionalContext: string; files?: File[] }) =>
       submitReplan(initiativeId, additionalContext, files),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
+      queryClient.invalidateQueries({
+        queryKey: ["initiative", initiativeId, "questions"],
+      });
+    },
+  });
+}
+
+export function useReuploadInitiative(initiativeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReuploadInitiativeInput) =>
+      reuploadInitiative(initiativeId, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
       queryClient.invalidateQueries({

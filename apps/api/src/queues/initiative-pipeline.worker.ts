@@ -13,6 +13,7 @@ import {
   type CompleteInitiativeData,
 } from "./jobs.js";
 import { createChildLogger } from "../lib/logger.js";
+import * as initiativeService from "../services/initiative.service.js";
 import { handlePlanInitiative } from "./handlers/plan-initiative.js";
 import { handleDecomposeFeature } from "./handlers/decompose-feature.js";
 import { handleDevelopFeature } from "./handlers/develop-feature.js";
@@ -63,11 +64,26 @@ export function createPipelineWorker() {
     lockDuration: QUEUE.LOCK_DURATION,
   });
 
-  worker.on("failed", (job, err) => {
+  worker.on("failed", async (job, err) => {
     log.error(
       { jobId: job?.id, jobType: job?.data.type, err },
       "Job failed",
     );
+
+    // On final failure, ensure initiative status is set to "failed"
+    if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+      const { data } = job;
+      try {
+        await initiativeService.updateInitiativeStatus(
+          data.initiativeId,
+          "failed",
+          err instanceof Error ? err.message : "Unknown error",
+        );
+        log.info({ initiativeId: data.initiativeId, jobType: data.type }, "Initiative marked as failed after all retries exhausted");
+      } catch (updateErr) {
+        log.error({ updateErr, initiativeId: data.initiativeId }, "Failed to update initiative status to failed");
+      }
+    }
   });
 
   worker.on("error", (err) => {

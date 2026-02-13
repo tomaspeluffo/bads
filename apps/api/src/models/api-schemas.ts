@@ -55,7 +55,7 @@ export const InitiativeIdParams = z.object({
 });
 
 export const ReplanInitiativeBody = z.object({
-  additionalContext: z.string().min(1),
+  additionalContext: z.string().optional().default(""),
 });
 
 export type ReplanInitiativeBody = z.infer<typeof ReplanInitiativeBody>;

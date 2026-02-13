@@ -193,6 +193,33 @@ export async function submitReplan(
   await api.post(`/initiatives/${id}/replan`, formData);
 }
 
+export type ReuploadInitiativeInput = Omit<UploadInitiativeInput, "clientId" | "targetRepo" | "baseBranch">;
+
+export async function reuploadInitiative(
+  id: string,
+  input: ReuploadInitiativeInput,
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("title", input.title);
+  formData.append("problem", input.problem);
+  formData.append("solutionSketch", input.solutionSketch);
+  if (input.responsable) formData.append("responsable", input.responsable);
+  if (input.soporte) formData.append("soporte", input.soporte);
+  if (input.successCriteria) formData.append("successCriteria", input.successCriteria);
+  if (input.techStack) formData.append("techStack", input.techStack);
+  if (input.additionalNotes) formData.append("additionalNotes", input.additionalNotes);
+  if (input.noGos) {
+    for (const ng of input.noGos) formData.append("noGos[]", ng);
+  }
+  if (input.risks) {
+    for (const r of input.risks) formData.append("risks[]", r);
+  }
+  if (input.files) {
+    for (const file of input.files) formData.append("files", file);
+  }
+  await api.put(`/initiatives/${id}/reupload`, formData);
+}
+
 export async function approveFeature(
   initiativeId: string,
   featureId: string,

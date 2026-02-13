@@ -84,6 +84,11 @@ function enqueue(data: PipelineJobData) {
   const jobId = `${data.type}-${data.initiativeId}-${"featureId" in data ? data.featureId : "na"}-${Date.now()}`;
   return initiativePipelineQueue.add(data.type, data, {
     jobId,
+    attempts: QUEUE.DEFAULT_ATTEMPTS,
+    backoff: {
+      type: QUEUE.BACKOFF.TYPE,
+      delay: QUEUE.BACKOFF.DELAY,
+    },
   });
 }
 

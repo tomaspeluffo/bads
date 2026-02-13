@@ -1,10 +1,16 @@
 import { anthropic } from "../lib/anthropic.js";
 import { logExecution } from "../services/execution.service.js";
 import type { AgentType } from "../models/agent-execution.js";
+import { FALLBACK_MODEL } from "../config/constants.js";
 import { createChildLogger } from "../lib/logger.js";
 import type Anthropic from "@anthropic-ai/sdk";
+import AnthropicSDK from "@anthropic-ai/sdk";
 
 const log = createChildLogger({ module: "agent" });
+
+function isOverloadedError(err: unknown): boolean {
+  return err instanceof AnthropicSDK.APIError && err.status === 529;
+}
 
 export interface AgentCallOptions {
   agent: AgentType;
@@ -34,7 +40,7 @@ export async function callAgent(opts: AgentCallOptions): Promise<AgentResult> {
   callLog.info("Agent call started");
 
   try {
-    const response = await anthropic.messages.create({
+    const response = await createMessageWithFallback({
       model: opts.model,
       max_tokens: opts.maxTokens,
       system: opts.system,
@@ -95,6 +101,20 @@ export async function callAgent(opts: AgentCallOptions): Promise<AgentResult> {
   }
 }
 
+async function createMessageWithFallback(
+  params: Anthropic.MessageCreateParamsNonStreaming,
+): Promise<Anthropic.Message> {
+  try {
+    return await anthropic.messages.create(params);
+  } catch (err) {
+    if (isOverloadedError(err) && params.model !== FALLBACK_MODEL) {
+      log.warn({ model: params.model, fallback: FALLBACK_MODEL }, "Model overloaded, retrying with fallback");
+      return await anthropic.messages.create({ ...params, model: FALLBACK_MODEL });
+    }
+    throw err;
+  }
+}
+
 export async function callAgentWithTools(
   opts: AgentCallOptions,
   handleToolUse: (
@@ -116,7 +136,7 @@ export async function callAgentWithTools(
     iterations++;
     callLog.info({ iteration: iterations }, "Tool use iteration");
 
-    const response = await anthropic.messages.create({
+    const response = await createMessageWithFallback({
       model: opts.model,
       max_tokens: opts.maxTokens,
       system: opts.system,

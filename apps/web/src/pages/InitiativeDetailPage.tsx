@@ -1,12 +1,19 @@
 import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Trash2, Paperclip, AlertTriangle } from "lucide-react";
+import { Trash2, Paperclip, AlertTriangle, RefreshCw, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FeatureCard } from "@/components/FeatureCard";
@@ -17,6 +24,7 @@ import {
   useInitiativeDetail,
   useQuestions,
   useReplan,
+  useReuploadInitiative,
   useApproveFeature,
   useRejectFeature,
   useMoveFeature,
@@ -37,6 +45,7 @@ export function InitiativeDetailPage() {
   const { data: initiative, isLoading } = useInitiativeDetail(initiativeId!);
   const { data: questionsData } = useQuestions(initiativeId!);
   const replan = useReplan(initiativeId!);
+  const reupload = useReuploadInitiative(initiativeId!);
   const approve = useApproveFeature(initiativeId!);
   const reject = useRejectFeature(initiativeId!);
   const move = useMoveFeature(initiativeId!);
@@ -45,6 +54,22 @@ export function InitiativeDetailPage() {
   const [answer, setAnswer] = useState("");
   const [replanFiles, setReplanFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [reuploadOpen, setReuploadOpen] = useState(false);
+  const [reuploadForm, setReuploadForm] = useState({
+    title: "",
+    problem: "",
+    solutionSketch: "",
+    successCriteria: "",
+    techStack: "",
+    responsable: "",
+    soporte: "",
+    noGos: "",
+    risks: "",
+    additionalNotes: "",
+  });
+  const [reuploadFiles, setReuploadFiles] = useState<File[]>([]);
+  const reuploadFileInputRef = useRef<HTMLInputElement>(null);
 
   // Repo form state
   const [repoInput, setRepoInput] = useState("");
@@ -108,6 +133,49 @@ export function InitiativeDetailPage() {
     setReplanFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleReuploadChange = (field: string, value: string) => {
+    setReuploadForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleReuploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setReuploadFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+    }
+    if (reuploadFileInputRef.current) reuploadFileInputRef.current.value = "";
+  };
+
+  const handleReuploadSubmit = () => {
+    reupload.mutate(
+      {
+        ...reuploadForm,
+        noGos: reuploadForm.noGos ? reuploadForm.noGos.split("\n").map((s) => s.trim()).filter(Boolean) : [],
+        risks: reuploadForm.risks ? reuploadForm.risks.split("\n").map((s) => s.trim()).filter(Boolean) : [],
+        successCriteria: reuploadForm.successCriteria || undefined,
+        techStack: reuploadForm.techStack || undefined,
+        additionalNotes: reuploadForm.additionalNotes || undefined,
+        files: reuploadFiles.length > 0 ? reuploadFiles : undefined,
+      },
+      {
+        onSuccess: () => {
+          setReuploadOpen(false);
+          setReuploadForm({
+            title: "",
+            problem: "",
+            solutionSketch: "",
+            successCriteria: "",
+            techStack: "",
+            responsable: "",
+            soporte: "",
+            noGos: "",
+            risks: "",
+            additionalNotes: "",
+          });
+          setReuploadFiles([]);
+        },
+      },
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Breadcrumbs
@@ -127,6 +195,158 @@ export function InitiativeDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={initiative.status} />
+          {["failed", "planning", "planned"].includes(initiative.status) && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => replan.mutate({ additionalContext: "" })}
+                disabled={replan.isPending}
+                title="Reintentar planificación"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${replan.isPending ? "animate-spin" : ""}`} />
+                {replan.isPending ? "Replanificando..." : "Replanificar"}
+              </Button>
+              <Dialog open={reuploadOpen} onOpenChange={setReuploadOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" title="Re-subir contenido">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Re-subir pitch
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Re-subir contenido de la iniciativa</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="reupload-title">Título *</Label>
+                      <Input
+                        id="reupload-title"
+                        value={reuploadForm.title}
+                        onChange={(e) => handleReuploadChange("title", e.target.value)}
+                        placeholder="Título de la iniciativa"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reupload-problem">Problema a resolver *</Label>
+                      <Textarea
+                        id="reupload-problem"
+                        value={reuploadForm.problem}
+                        onChange={(e) => handleReuploadChange("problem", e.target.value)}
+                        placeholder="Descripción del problema..."
+                        rows={3}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reupload-solution">Solución propuesta *</Label>
+                      <Textarea
+                        id="reupload-solution"
+                        value={reuploadForm.solutionSketch}
+                        onChange={(e) => handleReuploadChange("solutionSketch", e.target.value)}
+                        placeholder="Solución de alto nivel..."
+                        rows={3}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="reupload-noGos" className="text-destructive">No-gos</Label>
+                        <Textarea
+                          id="reupload-noGos"
+                          value={reuploadForm.noGos}
+                          onChange={(e) => handleReuploadChange("noGos", e.target.value)}
+                          placeholder="Uno por línea..."
+                          rows={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="reupload-risks">Riesgos</Label>
+                        <Textarea
+                          id="reupload-risks"
+                          value={reuploadForm.risks}
+                          onChange={(e) => handleReuploadChange("risks", e.target.value)}
+                          placeholder="Uno por línea..."
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reupload-techStack">Stack tecnológico</Label>
+                      <Textarea
+                        id="reupload-techStack"
+                        value={reuploadForm.techStack}
+                        onChange={(e) => handleReuploadChange("techStack", e.target.value)}
+                        placeholder="React, Node.js..."
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reupload-notes">Notas adicionales</Label>
+                      <Textarea
+                        id="reupload-notes"
+                        value={reuploadForm.additionalNotes}
+                        onChange={(e) => handleReuploadChange("additionalNotes", e.target.value)}
+                        placeholder="Contexto adicional..."
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <input
+                        ref={reuploadFileInputRef}
+                        type="file"
+                        accept={ACCEPTED_FILE_TYPES}
+                        multiple
+                        onChange={handleReuploadFileChange}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => reuploadFileInputRef.current?.click()}
+                      >
+                        <Paperclip className="mr-2 h-4 w-4" />
+                        Adjuntar archivos
+                      </Button>
+                      {reuploadFiles.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {reuploadFiles.map((file, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"
+                            >
+                              {file.name}
+                              <button
+                                type="button"
+                                onClick={() => setReuploadFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                                className="ml-1 text-muted-foreground hover:text-foreground"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {reupload.isError && (
+                      <p className="text-sm text-destructive">Error al re-subir contenido.</p>
+                    )}
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button variant="ghost" onClick={() => setReuploadOpen(false)}>
+                        Cancelar
+                      </Button>
+                      <Button
+                        onClick={handleReuploadSubmit}
+                        disabled={!reuploadForm.title || !reuploadForm.problem || !reuploadForm.solutionSketch || reupload.isPending}
+                      >
+                        {reupload.isPending ? "Enviando..." : "Re-subir y replanificar"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
           <Button
             variant="outline"
             size="icon"

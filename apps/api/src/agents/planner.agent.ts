@@ -161,6 +161,10 @@ ${opts.notionContent.additionalNotes || "No especificadas"}
     messages: [{ role: "user", content: userMessage }],
   });
 
+  if (result.stopReason === "max_tokens") {
+    throw new Error("La respuesta del planificador fue truncada (max_tokens). El pitch puede ser demasiado largo o complejo.");
+  }
+
   // Strip markdown fences (```json ... ```) that the model sometimes adds
   const cleaned = result.content.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
   return JSON.parse(cleaned) as PlannerResult;

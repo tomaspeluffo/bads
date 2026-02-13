@@ -129,7 +129,7 @@ initiativeRouter.post(
     if (!idResult.success) throw new AppError(400, "ID inválido");
 
     const bodyResult = ReplanInitiativeBody.safeParse(req.body);
-    if (!bodyResult.success) throw new AppError(400, "Contexto adicional requerido");
+    if (!bodyResult.success) throw new AppError(400, "Datos de replanificación inválidos");
 
     const id = idResult.data.id;
     const { additionalContext } = bodyResult.data;
@@ -137,8 +137,9 @@ initiativeRouter.post(
     const initiative = await initiativeService.getInitiativeById(id);
     if (!initiative) throw new AppError(404, "Iniciativa no encontrada");
 
-    if (initiative.status !== "needs_info" && initiative.status !== "failed") {
-      throw new AppError(400, `No se puede replanificar una iniciativa con status "${initiative.status}". Debe ser "needs_info" o "failed".`);
+    const replanAllowedStatuses = ["needs_info", "failed", "planning", "planned"];
+    if (!replanAllowedStatuses.includes(initiative.status)) {
+      throw new AppError(400, `No se puede replanificar una iniciativa con status "${initiative.status}". Debe ser "needs_info", "failed", "planning" o "planned".`);
     }
 
     // Extract text from attached files
@@ -167,13 +168,93 @@ initiativeRouter.post(
 
     // Re-enqueue planning job
     const { targetRepo, baseBranch } = currentMetadata as { targetRepo: string; baseBranch: string };
+    // Pass notionPageId only for real Notion initiatives (not direct uploads)
+    const notionPageId = initiative.notion_page_id?.startsWith("direct-upload-")
+      ? undefined
+      : initiative.notion_page_id;
+    await enqueuePlanInitiative({
+      initiativeId: id,
+      notionPageId,
+      targetRepo,
+      baseBranch,
+    });
+
+    res.json({ message: "Re-planificación iniciada", initiativeId: id });
+  }),
+);
+
+// PUT /api/initiatives/:id/reupload - Re-upload pitch content and re-trigger planning
+// Accepts multipart/form-data with optional file attachments
+initiativeRouter.put(
+  "/initiatives/:id/reupload",
+  authMiddleware,
+  upload.array("files", 5),
+  asyncHandler(async (req, res) => {
+    const idResult = InitiativeIdParams.safeParse(req.params);
+    if (!idResult.success) throw new AppError(400, "ID inválido");
+
+    const parsed = UploadInitiativeBody.omit({ clientId: true, targetRepo: true, baseBranch: true }).safeParse(req.body);
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.errors.map((e) => e.message).join(", "));
+    }
+
+    const id = idResult.data.id;
+    const initiative = await initiativeService.getInitiativeById(id);
+    if (!initiative) throw new AppError(404, "Iniciativa no encontrada");
+
+    const reuploadAllowedStatuses = ["needs_info", "failed", "planning", "planned"];
+    if (!reuploadAllowedStatuses.includes(initiative.status)) {
+      throw new AppError(400, `No se puede re-subir contenido con status "${initiative.status}". Debe ser "needs_info", "failed", "planning" o "planned".`);
+    }
+
+    const {
+      title,
+      problem,
+      solutionSketch,
+      noGos,
+      risks,
+      successCriteria,
+      techStack,
+      additionalNotes,
+      responsable,
+      soporte,
+    } = parsed.data;
+
+    // Extract text from attached files
+    const files = (req.files as Express.Multer.File[]) ?? [];
+    const attachments = files.length > 0 ? await extractTextFromFiles(files) : [];
+
+    const rawContent = {
+      title,
+      url: null,
+      problem,
+      solutionSketch,
+      noGos,
+      risks,
+      successCriteria,
+      techStack,
+      additionalNotes,
+      responsable,
+      soporte,
+      rawBlocks: [],
+      attachments,
+    };
+
+    await initiativeService.updateInitiative(id, {
+      title,
+      raw_content: rawContent as unknown as Record<string, unknown>,
+    });
+
+    // Re-enqueue planning job
+    const currentMetadata = (initiative.metadata as Record<string, unknown>) ?? {};
+    const { targetRepo, baseBranch } = currentMetadata as { targetRepo: string; baseBranch: string };
     await enqueuePlanInitiative({
       initiativeId: id,
       targetRepo,
       baseBranch,
     });
 
-    res.json({ message: "Re-planificación iniciada", initiativeId: id });
+    res.json({ message: "Contenido re-subido y re-planificación iniciada", initiativeId: id });
   }),
 );
 

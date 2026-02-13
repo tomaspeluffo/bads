@@ -12,7 +12,11 @@ const log = createChildLogger({ handler: "plan-initiative" });
 export async function handlePlanInitiative(data: PlanInitiativeData): Promise<void> {
   const { initiativeId, notionPageId, targetRepo, baseBranch } = data;
 
-  await initiativeService.updateInitiativeStatus(initiativeId, "planning");
+  // Only set "planning" if not already failed (avoids overwriting error on retries)
+  const current = await initiativeService.getInitiativeById(initiativeId);
+  if (current?.status !== "failed") {
+    await initiativeService.updateInitiativeStatus(initiativeId, "planning");
+  }
 
   try {
     let notionContent: NotionPageContent;
