@@ -25,9 +25,12 @@ export const UploadInitiativeBody = z.object({
   solutionSketch: z.string().min(1),
   noGos: stringOrArray,
   risks: stringOrArray,
+  successCriteria: z.string().default(""),
+  techStack: z.string().default(""),
+  additionalNotes: z.string().default(""),
   responsable: z.string().default(""),
   soporte: z.string().default(""),
-  targetRepo: z.string().min(1),
+  targetRepo: z.string().default(""),
   baseBranch: z.string().default("main"),
   clientId: z.string().uuid().optional(),
 });

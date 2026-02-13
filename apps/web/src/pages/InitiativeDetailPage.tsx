@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Trash2, Paperclip } from "lucide-react";
+import { Trash2, Paperclip, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -16,6 +18,7 @@ import {
   useApproveFeature,
   useRejectFeature,
   useDeleteInitiative,
+  useUpdateRepo,
 } from "@/hooks/useInitiative";
 import { useClient } from "@/hooks/useClients";
 
@@ -34,9 +37,14 @@ export function InitiativeDetailPage() {
   const approve = useApproveFeature(initiativeId!);
   const reject = useRejectFeature(initiativeId!);
   const deleteInit = useDeleteInitiative();
+  const updateRepo = useUpdateRepo(initiativeId!);
   const [answer, setAnswer] = useState("");
   const [replanFiles, setReplanFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Repo form state
+  const [repoInput, setRepoInput] = useState("");
+  const [branchInput, setBranchInput] = useState("main");
 
   if (isLoading) {
     return <p className="text-muted-foreground">Cargando...</p>;
@@ -45,6 +53,9 @@ export function InitiativeDetailPage() {
   if (!initiative) {
     return <p className="text-muted-foreground">Iniciativa no encontrada.</p>;
   }
+
+  const metadata = initiative.metadata as Record<string, unknown> | null;
+  const hasRepo = !!(metadata?.targetRepo);
 
   const handleSubmitAnswers = () => {
     if (answer.trim() || replanFiles.length > 0) {
@@ -61,10 +72,24 @@ export function InitiativeDetailPage() {
   };
 
   const handleDelete = () => {
-    if (window.confirm("¿Estás seguro de que querés eliminar esta iniciativa? Esta acción no se puede deshacer.")) {
+    if (window.confirm("¿Estas seguro de que queres eliminar esta iniciativa? Esta accion no se puede deshacer.")) {
       deleteInit.mutate(initiativeId!, {
         onSuccess: () => navigate(`/clients/${clientId}`),
       });
+    }
+  };
+
+  const handleSaveRepo = () => {
+    if (repoInput.trim()) {
+      updateRepo.mutate(
+        { targetRepo: repoInput.trim(), baseBranch: branchInput.trim() || "main" },
+        {
+          onSuccess: () => {
+            setRepoInput("");
+            setBranchInput("main");
+          },
+        },
+      );
     }
   };
 
@@ -110,6 +135,60 @@ export function InitiativeDetailPage() {
           </Button>
         </div>
       </div>
+
+      {/* Alerta de repo faltante */}
+      {!hasRepo && (
+        <Card className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+              <AlertTriangle className="h-5 w-5" />
+              Repositorio no configurado
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-yellow-700 dark:text-yellow-400">
+              Esta iniciativa no tiene un repositorio GitHub asociado. La planificacion puede continuar, pero para ejecutar las tareas vas a necesitar configurar el repo.
+            </p>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="repoInput" className="text-xs">Repositorio</Label>
+                <Input
+                  id="repoInput"
+                  value={repoInput}
+                  onChange={(e) => setRepoInput(e.target.value)}
+                  placeholder="owner/repo"
+                />
+              </div>
+              <div className="w-32 space-y-1">
+                <Label htmlFor="branchInput" className="text-xs">Branch</Label>
+                <Input
+                  id="branchInput"
+                  value={branchInput}
+                  onChange={(e) => setBranchInput(e.target.value)}
+                  placeholder="main"
+                />
+              </div>
+              <Button
+                onClick={handleSaveRepo}
+                disabled={!repoInput.trim() || updateRepo.isPending}
+              >
+                {updateRepo.isPending ? "Guardando..." : "Guardar"}
+              </Button>
+            </div>
+            {updateRepo.isError && (
+              <p className="text-sm text-red-600">Error al guardar el repositorio.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Repo info (cuando ya esta configurado) */}
+      {hasRepo && (
+        <p className="text-sm text-muted-foreground">
+          Repositorio: <span className="font-mono">{metadata?.targetRepo as string}</span>
+          {metadata?.baseBranch ? <> (branch: <span className="font-mono">{String(metadata.baseBranch)}</span>)</> : null}
+        </p>
+      )}
 
       {/* Resumen del plan */}
       {initiative.plan && (
@@ -232,6 +311,11 @@ export function InitiativeDetailPage() {
       {initiative.features.length > 0 && (
         <>
           <h2 className="text-xl font-semibold">Features</h2>
+          {!hasRepo && (
+            <p className="text-sm text-yellow-600">
+              Configura el repositorio para poder aprobar o rechazar features.
+            </p>
+          )}
           <div className="grid gap-4 lg:grid-cols-2">
             {initiative.features.map((feature) => (
               <FeatureCard

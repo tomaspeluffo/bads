@@ -136,8 +136,17 @@ ${opts.notionContent.noGos.map((ng) => `- ${ng}`).join("\n") || "No especificado
 **Riesgos:**
 ${opts.notionContent.risks.map((r) => `- ${r}`).join("\n") || "No especificados"}
 
-**Responsable:** ${opts.notionContent.responsable}
-**Soporte:** ${opts.notionContent.soporte}${attachmentsBlock}${additionalBlock}`;
+**Definición de éxito / KPIs:**
+${opts.notionContent.successCriteria || "No especificados"}
+
+**Stack tecnológico:**
+${opts.notionContent.techStack || "No especificado"}
+
+**Notas adicionales (costo, timeline, fase, etc.):**
+${opts.notionContent.additionalNotes || "No especificadas"}
+
+**Responsable:** ${opts.notionContent.responsable || "No especificado"}
+**Soporte:** ${opts.notionContent.soporte || "No especificado"}${attachmentsBlock}${additionalBlock}`;
 
   const result = await callAgent({
     agent: "planner",

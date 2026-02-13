@@ -100,9 +100,9 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
     const features = await featureService.createFeatures(featureInserts);
     await initiativeService.updateInitiativeStatus(initiativeId, "planned");
 
-    // 6. Start first feature
+    // 6. Start first feature (only if targetRepo is set)
     const firstFeature = features[0];
-    if (firstFeature) {
+    if (firstFeature && targetRepo) {
       await initiativeService.updateInitiativeStatus(initiativeId, "in_progress");
       await enqueueDecomposeFeature({
         initiativeId,
@@ -110,9 +110,10 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
         targetRepo,
         baseBranch,
       });
+      log.info({ initiativeId, featureCount: features.length }, "Plan created, decomposition started");
+    } else if (!targetRepo) {
+      log.info({ initiativeId, featureCount: features.length }, "Plan created, awaiting target repo before starting execution");
     }
-
-    log.info({ initiativeId, featureCount: features.length }, "Plan created");
   } catch (err) {
     log.error({ err, initiativeId }, "Plan initiative failed");
     await initiativeService.updateInitiativeStatus(

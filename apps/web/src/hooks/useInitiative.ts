@@ -7,6 +7,7 @@ import {
   rejectFeature,
   uploadInitiative,
   deleteInitiative,
+  updateInitiativeRepo,
 } from "@/lib/api";
 import type { UploadInitiativeInput } from "@/lib/api";
 
@@ -77,6 +78,17 @@ export function useRejectFeature(initiativeId: string) {
   return useMutation({
     mutationFn: ({ featureId, feedback }: { featureId: string; feedback: string }) =>
       rejectFeature(initiativeId, featureId, feedback),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
+    },
+  });
+}
+
+export function useUpdateRepo(initiativeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ targetRepo, baseBranch }: { targetRepo: string; baseBranch?: string }) =>
+      updateInitiativeRepo(initiativeId, targetRepo, baseBranch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
     },

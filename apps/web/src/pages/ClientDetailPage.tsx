@@ -34,6 +34,9 @@ export function ClientDetailPage() {
   const [solutionSketch, setSolutionSketch] = useState("");
   const [noGos, setNoGos] = useState("");
   const [risks, setRisks] = useState("");
+  const [successCriteria, setSuccessCriteria] = useState("");
+  const [techStack, setTechStack] = useState("");
+  const [additionalNotes, setAdditionalNotes] = useState("");
   const [responsable, setResponsable] = useState("");
   const [soporte, setSoporte] = useState("");
   const [targetRepo, setTargetRepo] = useState("");
@@ -46,6 +49,9 @@ export function ClientDetailPage() {
     setSolutionSketch("");
     setNoGos("");
     setRisks("");
+    setSuccessCriteria("");
+    setTechStack("");
+    setAdditionalNotes("");
     setResponsable("");
     setSoporte("");
     setTargetRepo("");
@@ -61,9 +67,12 @@ export function ClientDetailPage() {
         solutionSketch,
         noGos: noGos ? noGos.split("\n").map((s) => s.trim()).filter(Boolean) : [],
         risks: risks ? risks.split("\n").map((s) => s.trim()).filter(Boolean) : [],
+        successCriteria: successCriteria || undefined,
+        techStack: techStack || undefined,
+        additionalNotes: additionalNotes || undefined,
         responsable,
         soporte,
-        targetRepo,
+        targetRepo: targetRepo || undefined,
         baseBranch,
         clientId,
         files: files.length > 0 ? files : undefined,
@@ -89,7 +98,7 @@ export function ClientDetailPage() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const canSubmit = title && problem && solutionSketch && targetRepo;
+  const canSubmit = title && problem && solutionSketch;
 
   if (isLoading) {
     return <p className="text-muted-foreground">Cargando...</p>;
@@ -160,6 +169,28 @@ export function ClientDetailPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="successCriteria">Definicion de exito / KPIs</Label>
+                <Textarea
+                  id="successCriteria"
+                  value={successCriteria}
+                  onChange={(e) => setSuccessCriteria(e.target.value)}
+                  placeholder="Como se mide el exito de esta iniciativa? Metricas, KPIs, criterios concretos..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="techStack">Stack tecnologico</Label>
+                <Textarea
+                  id="techStack"
+                  value={techStack}
+                  onChange={(e) => setTechStack(e.target.value)}
+                  placeholder="Tecnologias, frameworks, librerias. Ej: React + Node.js + PostgreSQL..."
+                  rows={2}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="noGos">No-gos (uno por linea)</Label>
@@ -181,6 +212,17 @@ export function ClientDetailPage() {
                     rows={3}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="additionalNotes">Notas adicionales</Label>
+                <Textarea
+                  id="additionalNotes"
+                  value={additionalNotes}
+                  onChange={(e) => setAdditionalNotes(e.target.value)}
+                  placeholder="Costo estimado, timeline, fases, dependencias, cualquier otra info relevante..."
+                  rows={3}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -206,13 +248,16 @@ export function ClientDetailPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="targetRepo">Repositorio *</Label>
+                  <Label htmlFor="targetRepo">Repositorio GitHub</Label>
                   <Input
                     id="targetRepo"
                     value={targetRepo}
                     onChange={(e) => setTargetRepo(e.target.value)}
-                    placeholder="owner/repo"
+                    placeholder="owner/repo (opcional)"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Podés agregarlo despues si todavia no lo tenés.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="baseBranch">Branch base</Label>
@@ -265,7 +310,7 @@ export function ClientDetailPage() {
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  PDF, Word, TXT o Markdown (max 10MB por archivo). Se extraerá el texto para darle contexto al planificador.
+                  PDF, Word, TXT o Markdown (max 10MB por archivo). Se extraera el texto para darle contexto al planificador.
                 </p>
               </div>
 

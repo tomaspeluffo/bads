@@ -30,14 +30,18 @@ featureRouter.post(
       throw new AppError(400, "Feature is not in human_review status");
     }
 
+    const metadata = initiative.metadata as Record<string, string> | null;
+    if (!metadata?.targetRepo) {
+      throw new AppError(400, "No se puede aprobar el feature: la iniciativa no tiene un repositorio configurado. Configurá el repositorio primero.");
+    }
+
     await featureService.updateFeatureStatus(fid, "approved");
 
-    const metadata = initiative.metadata as Record<string, string> | null;
     await enqueueMergeFeature({
       initiativeId: id,
       featureId: fid,
-      targetRepo: metadata?.targetRepo ?? "",
-      baseBranch: metadata?.baseBranch ?? "main",
+      targetRepo: metadata.targetRepo,
+      baseBranch: metadata.baseBranch ?? "main",
     });
 
     res.json({ message: "Feature approved, merge in progress" });
@@ -66,16 +70,20 @@ featureRouter.post(
       throw new AppError(400, "Feature is not in human_review status");
     }
 
+    const metadata = initiative.metadata as Record<string, string> | null;
+    if (!metadata?.targetRepo) {
+      throw new AppError(400, "No se puede rechazar y re-desarrollar el feature: la iniciativa no tiene un repositorio configurado. Configurá el repositorio primero.");
+    }
+
     await featureService.updateFeatureStatus(fid, "rejected", {
       rejection_feedback: feedback,
     });
 
-    const metadata = initiative.metadata as Record<string, string> | null;
     await enqueueDevelopFeature({
       initiativeId: id,
       featureId: fid,
-      targetRepo: metadata?.targetRepo ?? "",
-      baseBranch: metadata?.baseBranch ?? "main",
+      targetRepo: metadata.targetRepo,
+      baseBranch: metadata.baseBranch ?? "main",
       rejectionFeedback: feedback,
     });
 

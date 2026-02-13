@@ -87,9 +87,12 @@ export interface UploadInitiativeInput {
   solutionSketch: string;
   noGos?: string[];
   risks?: string[];
+  successCriteria?: string;
+  techStack?: string;
+  additionalNotes?: string;
   responsable?: string;
   soporte?: string;
-  targetRepo: string;
+  targetRepo?: string;
   baseBranch?: string;
   clientId?: string;
   files?: File[];
@@ -100,11 +103,14 @@ export async function uploadInitiative(input: UploadInitiativeInput): Promise<In
   formData.append("title", input.title);
   formData.append("problem", input.problem);
   formData.append("solutionSketch", input.solutionSketch);
-  formData.append("targetRepo", input.targetRepo);
+  if (input.targetRepo) formData.append("targetRepo", input.targetRepo);
   if (input.baseBranch) formData.append("baseBranch", input.baseBranch);
   if (input.clientId) formData.append("clientId", input.clientId);
   if (input.responsable) formData.append("responsable", input.responsable);
   if (input.soporte) formData.append("soporte", input.soporte);
+  if (input.successCriteria) formData.append("successCriteria", input.successCriteria);
+  if (input.techStack) formData.append("techStack", input.techStack);
+  if (input.additionalNotes) formData.append("additionalNotes", input.additionalNotes);
   if (input.noGos) {
     for (const ng of input.noGos) formData.append("noGos[]", ng);
   }
@@ -117,6 +123,14 @@ export async function uploadInitiative(input: UploadInitiativeInput): Promise<In
 
   const { data } = await api.post<Initiative>("/initiatives/upload", formData);
   return data;
+}
+
+export async function updateInitiativeRepo(
+  initiativeId: string,
+  targetRepo: string,
+  baseBranch?: string,
+): Promise<void> {
+  await api.patch(`/initiatives/${initiativeId}/repo`, { targetRepo, baseBranch });
 }
 
 export async function deleteInitiative(id: string): Promise<void> {

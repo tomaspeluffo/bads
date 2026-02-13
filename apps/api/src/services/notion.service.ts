@@ -10,6 +10,9 @@ export interface NotionPageContent {
   solutionSketch: string;
   noGos: string[];
   risks: string[];
+  successCriteria: string;
+  techStack: string;
+  additionalNotes: string;
   responsable: string;
   soporte: string;
   rawBlocks: unknown[];
@@ -82,6 +85,9 @@ function parseBlocks(blocks: unknown[]): Omit<NotionPageContent, "title" | "url"
     solutionSketch: findSection(sections, ["solution sketch", "solucion", "propuesta", "solution"]),
     noGos: findListSection(sections, ["no-gos", "no gos", "restricciones", "constraints"]),
     risks: findListSection(sections, ["riesgos", "risks", "risk"]),
+    successCriteria: findSection(sections, ["definición de éxito", "definicion de exito", "success criteria", "criterios de éxito", "criterios de exito", "kpis"]),
+    techStack: findSection(sections, ["stack", "tecnología", "tecnologia", "technology", "tech stack"]),
+    additionalNotes: findSection(sections, ["notas", "notes", "adicional", "additional", "costo", "cost", "timeline", "fase"]),
     responsable: findSection(sections, ["responsable", "owner", "responsible"]),
     soporte: findSection(sections, ["soporte", "support"]),
   };

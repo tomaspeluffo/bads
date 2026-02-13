@@ -67,6 +67,9 @@ initiativeRouter.post(
       solutionSketch,
       noGos,
       risks,
+      successCriteria,
+      techStack,
+      additionalNotes,
       responsable,
       soporte,
       targetRepo,
@@ -86,6 +89,9 @@ initiativeRouter.post(
       solutionSketch,
       noGos,
       risks,
+      successCriteria,
+      techStack,
+      additionalNotes,
       responsable,
       soporte,
       rawBlocks: [],
@@ -99,12 +105,12 @@ initiativeRouter.post(
       status: "pending",
       started_by: user.id,
       client_id: clientId ?? null,
-      metadata: { targetRepo, baseBranch },
+      metadata: { targetRepo: targetRepo || null, baseBranch },
     });
 
     await enqueuePlanInitiative({
       initiativeId: initiative.id,
-      targetRepo,
+      targetRepo: targetRepo || "",
       baseBranch,
     });
 
@@ -206,6 +212,35 @@ initiativeRouter.delete(
 
     await initiativeService.deleteInitiative(id);
     res.json({ message: "Iniciativa eliminada" });
+  }),
+);
+
+// PATCH /api/initiatives/:id/repo - Set or update the target repository
+initiativeRouter.patch(
+  "/initiatives/:id/repo",
+  authMiddleware,
+  validate({ params: InitiativeIdParams }),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id as string;
+    const { targetRepo, baseBranch } = req.body as { targetRepo: string; baseBranch?: string };
+
+    if (!targetRepo || typeof targetRepo !== "string" || !targetRepo.trim()) {
+      throw new AppError(400, "targetRepo es requerido");
+    }
+
+    const initiative = await initiativeService.getInitiativeById(id);
+    if (!initiative) throw new AppError(404, "Iniciativa no encontrada");
+
+    const currentMetadata = (initiative.metadata as Record<string, unknown>) ?? {};
+    await initiativeService.updateInitiative(id, {
+      metadata: {
+        ...currentMetadata,
+        targetRepo: targetRepo.trim(),
+        baseBranch: baseBranch?.trim() || currentMetadata.baseBranch || "main",
+      },
+    });
+
+    res.json({ message: "Repositorio actualizado", targetRepo: targetRepo.trim() });
   }),
 );
 
