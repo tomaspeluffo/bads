@@ -1,16 +1,15 @@
 import type { HealthResponse, ComponentStatus } from "../models/health.js";
-import { supabase } from "../lib/supabase.js";
+import { pool } from "../lib/db.js";
 import { redis } from "../lib/redis.js";
 import { initiativePipelineQueue } from "../queues/initiative-pipeline.queue.js";
 
 const startTime = Date.now();
 
-async function checkSupabase(): Promise<ComponentStatus> {
+async function checkDatabase(): Promise<ComponentStatus> {
   const start = Date.now();
   try {
-    const { error } = await supabase.from("initiatives").select("id").limit(1);
+    await pool.query("SELECT 1");
     const latencyMs = Date.now() - start;
-    if (error) return { status: "degraded", latencyMs, message: error.message };
     return { status: "ok", latencyMs };
   } catch (err) {
     return { status: "down", latencyMs: Date.now() - start, message: (err as Error).message };
@@ -44,14 +43,14 @@ async function checkQueue() {
 }
 
 export async function getHealthStatus(): Promise<HealthResponse> {
-  const [supabaseStatus, redisStatus, queueStatus] = await Promise.all([
-    checkSupabase(),
+  const [databaseStatus, redisStatus, queueStatus] = await Promise.all([
+    checkDatabase(),
     checkRedis(),
     checkQueue(),
   ]);
 
-  const allOk = supabaseStatus.status === "ok" && redisStatus.status === "ok" && queueStatus.status === "ok";
-  const anyDown = supabaseStatus.status === "down" || redisStatus.status === "down" || queueStatus.status === "down";
+  const allOk = databaseStatus.status === "ok" && redisStatus.status === "ok" && queueStatus.status === "ok";
+  const anyDown = databaseStatus.status === "down" || redisStatus.status === "down" || queueStatus.status === "down";
 
   return {
     status: anyDown ? "down" : allOk ? "ok" : "degraded",
@@ -59,7 +58,7 @@ export async function getHealthStatus(): Promise<HealthResponse> {
     version: "0.1.0",
     uptime: Math.floor((Date.now() - startTime) / 1000),
     components: {
-      supabase: supabaseStatus,
+      database: databaseStatus,
       redis: redisStatus,
       queue: queueStatus,
     },

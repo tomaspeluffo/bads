@@ -1,7 +1,11 @@
 import type { Request } from "express";
-import type { User } from "@supabase/supabase-js";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+}
 
 export interface AuthenticatedRequest extends Request {
-  user: User;
+  user: AuthUser;
   requestId: string;
 }

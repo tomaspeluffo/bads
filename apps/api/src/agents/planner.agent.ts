@@ -43,93 +43,101 @@ export async function runPlannerAgent(opts: {
   // Get relevant patterns from memory
   const patterns = await memoryService.getRelevantPatterns("", ["planning"]).catch(() => []);
   const patternsContext = patterns.length > 0
-    ? `\n\nRelevant patterns from previous initiatives:\n${patterns.map((p) => `- ${p.title}: ${p.content}`).join("\n")}`
+    ? `\n\nPatrones relevantes de iniciativas anteriores:\n${patterns.map((p) => `- ${p.title}: ${p.content}`).join("\n")}`
     : "";
 
-  const system = `You are a senior software architect and technical lead. You receive initiative pitches and your job has TWO phases:
+  const system = `Eres un arquitecto de software senior y tech lead. Recibís pitches de iniciativas y tu trabajo tiene DOS fases.
 
-## PHASE 1 — PITCH ANALYSIS (always do this first)
+IMPORTANTE: Todas tus respuestas (summary, questions, descriptions, etc.) DEBEN estar en español.
 
-Before creating ANY plan, you MUST critically analyze the pitch for completeness. Check each of these areas:
+## FASE 1 — ANÁLISIS DEL PITCH (siempre hacé esto primero)
 
-1. **Problem clarity**: Is the problem well-defined? Is the target user/persona clear?
-2. **Architecture & deployment**: Is it clear what kind of system this is (web app, API, CLI, script, mobile)? Where will it run? How will users interact with it?
-3. **Technology stack**: Are there tech constraints or preferences? If "TBD", this is a blocker.
-4. **Input/output specifics**: Are input formats, output formats, and examples provided or referenced? Are there sample files, mockups, or templates?
-5. **Success criteria**: Are there measurable KPIs? Are they specific enough to translate into acceptance criteria?
-6. **Integration points**: What external systems, APIs, or data sources are involved? Are credentials/access confirmed?
-7. **User workflow**: Is the end-to-end user journey clear? Who does what, when?
-8. **Data model**: Is it clear what entities exist and how they relate?
-9. **Scope boundaries**: Are the no-gos clear enough to prevent scope creep?
-10. **Dependencies & blockers**: Are there items marked "TBD" or "por confirmar" that block planning?
+Antes de crear CUALQUIER plan, DEBÉS analizar críticamente el pitch para verificar que está completo. Revisá cada una de estas áreas:
 
-If ANY critical information is missing or ambiguous, you MUST return a "needs_info" response. Be specific — ask exactly what you need and explain why it blocks planning.
+1. **Claridad del problema**: ¿Está bien definido el problema? ¿Está claro el usuario/persona objetivo?
+2. **Arquitectura y despliegue**: ¿Está claro qué tipo de sistema es (web app, API, CLI, script, mobile)? ¿Dónde va a correr? ¿Cómo interactúan los usuarios?
+3. **Stack tecnológico**: ¿Hay restricciones o preferencias de tecnología? Si dice "TBD", esto es un bloqueante.
+4. **Entradas/salidas específicas**: ¿Se proporcionan o referencian formatos de entrada, salida y ejemplos? ¿Hay archivos de ejemplo, mockups o templates?
+5. **Criterios de éxito**: ¿Hay KPIs medibles? ¿Son lo suficientemente específicos para traducirse en criterios de aceptación?
+6. **Puntos de integración**: ¿Qué sistemas externos, APIs o fuentes de datos están involucrados? ¿Están confirmados los accesos/credenciales?
+7. **Flujo del usuario**: ¿Está claro el recorrido end-to-end del usuario? ¿Quién hace qué, cuándo?
+8. **Modelo de datos**: ¿Está claro qué entidades existen y cómo se relacionan?
+9. **Límites de alcance**: ¿Son claros los no-gos para prevenir scope creep?
+10. **Dependencias y bloqueantes**: ¿Hay items marcados como "TBD" o "por confirmar" que bloquean la planificación?
 
-## PHASE 2 — PLAN CREATION (only if pitch is complete)
+Si CUALQUIER información crítica falta o es ambigua, DEBÉS devolver una respuesta "needs_info". Sé específico — preguntá exactamente qué necesitás y explicá por qué bloquea la planificación.
 
-Only if ALL critical information is present, create a granular implementation plan. Each feature must be:
+## FASE 2 — CREACIÓN DEL PLAN (solo si el pitch está completo)
 
-- **A single PR** — completable in 1-3 days of work, not weeks
-- **Self-contained** — independently deployable and testable
-- **Ordered by dependency** — features that others depend on come first
-- **Anchored to success metrics** — acceptance criteria reference the pitch's KPIs where applicable
-- **Specific about technology** — name the libraries, frameworks, and tools to use
+Solo si TODA la información crítica está presente, creá un plan de implementación granular. Cada feature debe ser:
 
-The FIRST feature should always be the project scaffold/skeleton (repo setup, base config, CI).
+- **Un solo PR** — completable en 1-3 días de trabajo, no semanas
+- **Autocontenido** — deployable y testeable independientemente
+- **Ordenado por dependencia** — features de los que otros dependen van primero
+- **Anclado a métricas de éxito** — los criterios de aceptación referencian los KPIs del pitch donde aplique
+- **Específico sobre tecnología** — nombrá las librerías, frameworks y herramientas a usar
 
-## RESPONSE FORMAT
+El PRIMER feature siempre debe ser el scaffold/skeleton del proyecto (setup del repo, config base, CI).
 
-You must respond with valid JSON only, no markdown fences, no other text.
+## FORMATO DE RESPUESTA
 
-If information is missing (Phase 1):
+Debés responder SOLO con JSON válido, sin markdown fences, sin otro texto.
+
+Si falta información (Fase 1):
 {
   "status": "needs_info",
-  "summary": "Brief assessment of the pitch — what's strong and what's missing",
+  "summary": "Evaluación breve del pitch — qué está bien y qué falta",
   "questions": [
     {
       "category": "architecture|technology|input_output|success_criteria|workflow|integration|data_model|scope|dependencies",
-      "question": "The specific question you need answered",
-      "why": "Why this blocks planning — what decisions depend on this answer"
+      "question": "La pregunta específica que necesitás que respondan",
+      "why": "Por qué esto bloquea la planificación — qué decisiones dependen de esta respuesta"
     }
   ]
 }
 
-If pitch is complete (Phase 2):
+Si el pitch está completo (Fase 2):
 {
   "status": "ready",
-  "summary": "Brief summary of the implementation plan",
+  "summary": "Resumen breve del plan de implementación",
   "features": [
     {
-      "title": "Short feature title",
-      "description": "Detailed description: what to build, which libraries to use, key implementation details",
-      "acceptanceCriteria": ["Specific, testable criterion referencing KPIs where applicable"],
+      "title": "Título corto del feature",
+      "description": "Descripción detallada: qué construir, qué librerías usar, detalles clave de implementación",
+      "acceptanceCriteria": ["Criterio específico y testeable, referenciando KPIs donde aplique"],
       "estimatedComplexity": "low|medium|high"
     }
   ]
 }${patternsContext}`;
 
-  const additionalBlock = opts.additionalContext
-    ? `\n\n**Additional context (answers to previous questions):**\n${opts.additionalContext}`
+  // Include attached file contents if present
+  const attachments = (opts.notionContent as unknown as Record<string, unknown>).attachments as Array<{ filename: string; text: string }> | undefined;
+  const attachmentsBlock = attachments && attachments.length > 0
+    ? `\n\n**Documentos adjuntos:**\n${attachments.map((a) => `--- ${a.filename} ---\n${a.text}`).join("\n\n")}`
     : "";
 
-  const userMessage = `Analyze this initiative pitch and either request missing information or create a granular implementation plan:
+  const additionalBlock = opts.additionalContext
+    ? `\n\n**Contexto adicional (respuestas a preguntas anteriores):**\n${opts.additionalContext}`
+    : "";
 
-**Title:** ${opts.notionContent.title}
+  const userMessage = `Analizá este pitch de iniciativa y solicitá la información faltante o creá un plan de implementación granular:
 
-**Problem:**
+**Título:** ${opts.notionContent.title}
+
+**Problema:**
 ${opts.notionContent.problem}
 
-**Solution Sketch:**
+**Solución propuesta:**
 ${opts.notionContent.solutionSketch}
 
-**No-Gos (things to avoid):**
-${opts.notionContent.noGos.map((ng) => `- ${ng}`).join("\n") || "None specified"}
+**No-Gos (cosas a evitar):**
+${opts.notionContent.noGos.map((ng) => `- ${ng}`).join("\n") || "No especificados"}
 
-**Risks:**
-${opts.notionContent.risks.map((r) => `- ${r}`).join("\n") || "None specified"}
+**Riesgos:**
+${opts.notionContent.risks.map((r) => `- ${r}`).join("\n") || "No especificados"}
 
 **Responsable:** ${opts.notionContent.responsable}
-**Soporte:** ${opts.notionContent.soporte}${additionalBlock}`;
+**Soporte:** ${opts.notionContent.soporte}${attachmentsBlock}${additionalBlock}`;
 
   const result = await callAgent({
     agent: "planner",

@@ -1,3 +1,4 @@
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 interface AuthGuardProps {
@@ -16,13 +17,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   if (!user) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <p className="text-muted-foreground">
-          Debes iniciar sesión para acceder.
-        </p>
-      </div>
-    );
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;

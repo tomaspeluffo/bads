@@ -27,7 +27,10 @@
       "Bash(node -e:*)",
       "Bash(pnpm dev:api:*)",
       "Bash(timeout:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(find:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm remove:*)"
     ]
   }
 }

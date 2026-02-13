@@ -1,8 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+import jwt from "jsonwebtoken";
+import { env } from "../config/env.js";
+import type { AuthUser } from "../types/index.js";
 
 export async function authMiddleware(
   req: Request,
@@ -18,20 +17,16 @@ export async function authMiddleware(
 
   const token = authHeader.split(" ")[1];
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
+  try {
+    const payload = jwt.verify(token, env.JWT_SECRET) as {
+      userId: string;
+      email: string;
+    };
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
+    const user: AuthUser = { id: payload.userId, email: payload.email };
+    (req as Request & { user: AuthUser }).user = user;
+    next();
+  } catch {
     res.status(401).json({ error: "Token inválido" });
-    return;
   }
-
-  (req as Request & { user: typeof user }).user = user;
-  next();
 }

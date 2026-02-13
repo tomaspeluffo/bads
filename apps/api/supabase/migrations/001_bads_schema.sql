@@ -34,7 +34,7 @@ CREATE TABLE initiatives (
   title TEXT NOT NULL,
   raw_content JSONB,
   status initiative_status NOT NULL DEFAULT 'pending',
-  started_by UUID REFERENCES auth.users,
+  started_by UUID,
   error_message TEXT,
   metadata JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -159,18 +159,3 @@ CREATE TRIGGER trg_tasks_updated_at
 CREATE TRIGGER trg_memory_entries_updated_at
   BEFORE UPDATE ON memory_entries FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- RLS (enable but allow service role full access)
-ALTER TABLE initiatives ENABLE ROW LEVEL SECURITY;
-ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
-ALTER TABLE features ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE agent_executions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE memory_entries ENABLE ROW LEVEL SECURITY;
-
--- Service role bypass policies
-CREATE POLICY "Service role full access" ON initiatives FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON plans FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON features FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON tasks FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON agent_executions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Service role full access" ON memory_entries FOR ALL USING (true) WITH CHECK (true);

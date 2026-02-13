@@ -13,16 +13,23 @@ export const CreateInitiativeBody = z.object({
 
 export type CreateInitiativeBody = z.infer<typeof CreateInitiativeBody>;
 
+// Helper: accept a single string or array from multipart form data
+const stringOrArray = z
+  .union([z.string(), z.array(z.string())])
+  .transform((v) => (Array.isArray(v) ? v : [v]).filter(Boolean))
+  .default([]);
+
 export const UploadInitiativeBody = z.object({
   title: z.string().min(1),
   problem: z.string().min(1),
   solutionSketch: z.string().min(1),
-  noGos: z.array(z.string()).default([]),
-  risks: z.array(z.string()).default([]),
+  noGos: stringOrArray,
+  risks: stringOrArray,
   responsable: z.string().default(""),
   soporte: z.string().default(""),
   targetRepo: z.string().min(1),
   baseBranch: z.string().default("main"),
+  clientId: z.string().uuid().optional(),
 });
 
 export type UploadInitiativeBody = z.infer<typeof UploadInitiativeBody>;
@@ -84,6 +91,29 @@ export const ListPatternsQuery = z.object({
 });
 
 export type ListPatternsQuery = z.infer<typeof ListPatternsQuery>;
+
+// --- Clients ---
+
+export const CreateClientBody = z.object({
+  name: z.string().min(1),
+  slug: z.string().regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
+  description: z.string().optional(),
+});
+
+export type CreateClientBody = z.infer<typeof CreateClientBody>;
+
+export const ClientIdParams = z.object({
+  clientId: z.string().uuid(),
+});
+
+// --- Auth ---
+
+export const LoginBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+export type LoginBody = z.infer<typeof LoginBody>;
 
 // --- Webhooks ---
 

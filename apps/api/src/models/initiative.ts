@@ -21,6 +21,7 @@ export const InitiativeSchema = z.object({
   raw_content: z.record(z.unknown()).nullable(),
   status: z.enum(initiativeStatuses),
   started_by: z.string().uuid().nullable(),
+  client_id: z.string().uuid().nullable(),
   error_message: z.string().nullable(),
   metadata: z.record(z.unknown()).nullable(),
   created_at: z.string(),
@@ -36,6 +37,7 @@ export const InsertInitiativeSchema = z.object({
   raw_content: z.record(z.unknown()).nullable().optional(),
   status: z.enum(initiativeStatuses).default("pending"),
   started_by: z.string().uuid().nullable().optional(),
+  client_id: z.string().uuid().nullable().optional(),
   metadata: z.record(z.unknown()).nullable().optional(),
 });
 

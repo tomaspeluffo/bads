@@ -1,57 +1,49 @@
-import { supabase } from "../lib/supabase.js";
+import { query } from "../lib/db.js";
 import type { Plan, InsertPlan } from "../models/plan.js";
-
-const TABLE = "plans";
 
 export async function createPlan(data: InsertPlan): Promise<Plan> {
   // Deactivate previous active plans for this initiative
-  await supabase
-    .from(TABLE)
-    .update({ is_active: false })
-    .eq("initiative_id", data.initiative_id)
-    .eq("is_active", true);
+  await query(
+    "UPDATE plans SET is_active = false WHERE initiative_id = $1 AND is_active = true",
+    [data.initiative_id],
+  );
 
-  const { data: row, error } = await supabase
-    .from(TABLE)
-    .insert(data)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return row as Plan;
+  const result = await query<Plan>(
+    `INSERT INTO plans (initiative_id, version, summary, raw_output, feature_count, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      data.initiative_id,
+      data.version ?? 1,
+      data.summary,
+      data.raw_output ? JSON.stringify(data.raw_output) : null,
+      data.feature_count,
+      data.is_active ?? true,
+    ],
+  );
+  return result.rows[0];
 }
 
 export async function getActivePlan(initiativeId: string): Promise<Plan | null> {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select()
-    .eq("initiative_id", initiativeId)
-    .eq("is_active", true)
-    .single();
-
-  if (error && error.code !== "PGRST116") throw error;
-  return (data as Plan) ?? null;
+  const result = await query<Plan>(
+    "SELECT * FROM plans WHERE initiative_id = $1 AND is_active = true",
+    [initiativeId],
+  );
+  return result.rows[0] ?? null;
 }
 
 export async function getPlanById(id: string): Promise<Plan | null> {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select()
-    .eq("id", id)
-    .single();
-
-  if (error && error.code !== "PGRST116") throw error;
-  return (data as Plan) ?? null;
+  const result = await query<Plan>(
+    "SELECT * FROM plans WHERE id = $1",
+    [id],
+  );
+  return result.rows[0] ?? null;
 }
 
 export async function getNextPlanVersion(initiativeId: string): Promise<number> {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select("version")
-    .eq("initiative_id", initiativeId)
-    .order("version", { ascending: false })
-    .limit(1);
-
-  if (error) throw error;
-  return data && data.length > 0 ? (data[0] as { version: number }).version + 1 : 1;
+  const result = await query<{ version: number }>(
+    "SELECT version FROM plans WHERE initiative_id = $1 ORDER BY version DESC LIMIT 1",
+    [initiativeId],
+  );
+  return result.rows.length > 0 ? result.rows[0].version + 1 : 1;
 }

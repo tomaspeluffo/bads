@@ -7,10 +7,11 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
 
-  // Supabase
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  // Database
+  DATABASE_URL: z.string().min(1),
+
+  // Auth
+  JWT_SECRET: z.string().min(1),
 
   // Anthropic
   ANTHROPIC_API_KEY: z.string().min(1),

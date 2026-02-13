@@ -14,7 +14,7 @@ export const HealthResponseSchema = z.object({
   version: z.string(),
   uptime: z.number(),
   components: z.object({
-    supabase: ComponentStatusSchema,
+    database: ComponentStatusSchema,
     redis: ComponentStatusSchema,
     queue: z.object({
       status: z.enum(["ok", "degraded", "down"]),

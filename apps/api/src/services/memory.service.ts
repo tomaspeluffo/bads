@@ -1,91 +1,103 @@
-import { supabase } from "../lib/supabase.js";
+import { query } from "../lib/db.js";
 import type { MemoryEntry, MemoryType, InsertMemoryEntry } from "../models/memory-entry.js";
 import type { ListPatternsQuery } from "../models/api-schemas.js";
 import { logger } from "../lib/logger.js";
 
-const TABLE = "memory_entries";
-
 export async function createMemoryEntry(data: InsertMemoryEntry): Promise<MemoryEntry> {
-  const { data: row, error } = await supabase
-    .from(TABLE)
-    .insert(data)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return row as MemoryEntry;
+  const result = await query<MemoryEntry>(
+    `INSERT INTO memory_entries (type, category, title, content, source_initiative_id, tags, usage_count)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [
+      data.type,
+      data.category,
+      data.title,
+      data.content,
+      data.source_initiative_id ?? null,
+      data.tags ?? null,
+      data.usage_count ?? 0,
+    ],
+  );
+  return result.rows[0];
 }
 
-export async function listPatterns(query: ListPatternsQuery): Promise<{
+export async function listPatterns(opts: ListPatternsQuery): Promise<{
   data: MemoryEntry[];
   total: number;
 }> {
-  const from = (query.page - 1) * query.limit;
-  const to = from + query.limit - 1;
+  const offset = (opts.page - 1) * opts.limit;
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  let paramIndex = 1;
 
-  let q = supabase
-    .from(TABLE)
-    .select("*", { count: "exact" })
-    .order("usage_count", { ascending: false })
-    .range(from, to);
+  if (opts.category) {
+    conditions.push(`category = $${paramIndex}`);
+    params.push(opts.category);
+    paramIndex++;
+  }
+  if (opts.type) {
+    conditions.push(`type = $${paramIndex}`);
+    params.push(opts.type);
+    paramIndex++;
+  }
+  if (opts.tags && opts.tags.length > 0) {
+    conditions.push(`tags && $${paramIndex}`);
+    params.push(opts.tags);
+    paramIndex++;
+  }
 
-  if (query.category) {
-    q = q.eq("category", query.category);
-  }
-  if (query.type) {
-    q = q.eq("type", query.type);
-  }
-  if (query.tags && query.tags.length > 0) {
-    q = q.overlaps("tags", query.tags);
-  }
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  params.push(opts.limit, offset);
 
-  const { data, error, count } = await q;
-  if (error) throw error;
-  return { data: (data as MemoryEntry[]) ?? [], total: count ?? 0 };
+  const result = await query<MemoryEntry & { full_count: string }>(
+    `SELECT *, count(*) OVER() AS full_count
+     FROM memory_entries
+     ${whereClause}
+     ORDER BY usage_count DESC
+     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+    params,
+  );
+
+  const total = result.rows.length > 0 ? parseInt(result.rows[0].full_count, 10) : 0;
+  return { data: result.rows, total };
 }
 
 export async function getRelevantPatterns(
   category: string,
   tags: string[],
 ): Promise<MemoryEntry[]> {
-  let q = supabase
-    .from(TABLE)
-    .select()
-    .order("usage_count", { ascending: false })
-    .limit(10);
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  let paramIndex = 1;
 
   if (category) {
-    q = q.eq("category", category);
+    conditions.push(`category = $${paramIndex}`);
+    params.push(category);
+    paramIndex++;
   }
   if (tags.length > 0) {
-    q = q.overlaps("tags", tags);
+    conditions.push(`tags && $${paramIndex}`);
+    params.push(tags);
+    paramIndex++;
   }
 
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data as MemoryEntry[]) ?? [];
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  const result = await query<MemoryEntry>(
+    `SELECT * FROM memory_entries
+     ${whereClause}
+     ORDER BY usage_count DESC
+     LIMIT 10`,
+    params,
+  );
+  return result.rows;
 }
 
 export async function incrementUsageCount(id: string): Promise<void> {
-  const { error } = await supabase.rpc("increment_usage_count", {
-    entry_id: id,
-  });
-
-  // Fallback if RPC doesn't exist
-  if (error) {
-    const { data } = await supabase
-      .from(TABLE)
-      .select("usage_count")
-      .eq("id", id)
-      .single();
-
-    if (data) {
-      await supabase
-        .from(TABLE)
-        .update({ usage_count: (data as { usage_count: number }).usage_count + 1 })
-        .eq("id", id);
-    }
-  }
+  await query(
+    "UPDATE memory_entries SET usage_count = usage_count + 1 WHERE id = $1",
+    [id],
+  );
 }
 
 export async function extractAndStorePatterns(

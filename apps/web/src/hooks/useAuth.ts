@@ -1,27 +1,46 @@
-import { useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { getToken, clearToken } from "@/lib/auth";
+import { login, fetchMe, logout } from "@/lib/api";
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-      setLoading(false);
-    });
+  const {
+    data: user,
+    isLoading: loading,
+  } = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: fetchMe,
+    enabled: !!getToken(),
+    retry: false,
+  });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
+  const signInMutation = useMutation({
+    mutationFn: ({ email, password }: { email: string; password: string }) =>
+      login(email, password),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["auth", "me"], data.user);
+      navigate("/");
+    },
+  });
 
-    return () => subscription.unsubscribe();
-  }, []);
+  const signOutMutation = useMutation({
+    mutationFn: logout,
+    onSuccess: () => {
+      clearToken();
+      queryClient.clear();
+      navigate("/login");
+    },
+  });
 
-  const signOut = () => supabase.auth.signOut();
-
-  return { user, loading, signOut };
+  return {
+    user: user ?? null,
+    loading,
+    signIn: signInMutation.mutate,
+    signOut: () => signOutMutation.mutate(),
+    loginError: signInMutation.error,
+    isLoggingIn: signInMutation.isPending,
+  };
 }

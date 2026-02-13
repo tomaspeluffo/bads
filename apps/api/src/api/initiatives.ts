@@ -15,6 +15,8 @@ import * as featureService from "../services/feature.service.js";
 import * as taskService from "../services/task.service.js";
 import * as executionService from "../services/execution.service.js";
 import { enqueuePlanInitiative } from "../queues/jobs.js";
+import { upload } from "../middleware/upload.js";
+import { extractTextFromFiles } from "../lib/file-parser.js";
 import type { AuthenticatedRequest } from "../types/index.js";
 
 export const initiativeRouter = Router();
@@ -48,11 +50,17 @@ initiativeRouter.post(
 );
 
 // POST /api/initiatives/upload - Create initiative from direct pitch upload (no Notion)
+// Accepts multipart/form-data with optional file attachments
 initiativeRouter.post(
   "/initiatives/upload",
   authMiddleware,
-  validate({ body: UploadInitiativeBody }),
+  upload.array("files", 5),
   asyncHandler(async (req, res) => {
+    const parsed = UploadInitiativeBody.safeParse(req.body);
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.errors.map((e) => e.message).join(", "));
+    }
+
     const {
       title,
       problem,
@@ -63,8 +71,13 @@ initiativeRouter.post(
       soporte,
       targetRepo,
       baseBranch,
-    } = req.body as UploadInitiativeBody;
+      clientId,
+    } = parsed.data;
     const user = (req as AuthenticatedRequest).user;
+
+    // Extract text from attached files
+    const files = (req.files as Express.Multer.File[]) ?? [];
+    const attachments = files.length > 0 ? await extractTextFromFiles(files) : [];
 
     const rawContent = {
       title,
@@ -76,6 +89,7 @@ initiativeRouter.post(
       responsable,
       soporte,
       rawBlocks: [],
+      attachments,
     };
 
     const initiative = await initiativeService.createInitiative({
@@ -84,6 +98,7 @@ initiativeRouter.post(
       raw_content: rawContent,
       status: "pending",
       started_by: user.id,
+      client_id: clientId ?? null,
       metadata: { targetRepo, baseBranch },
     });
 
@@ -98,27 +113,47 @@ initiativeRouter.post(
 );
 
 // POST /api/initiatives/:id/replan - Provide additional context and re-trigger planning
+// Accepts multipart/form-data with optional file attachments
 initiativeRouter.post(
   "/initiatives/:id/replan",
   authMiddleware,
-  validate({ params: InitiativeIdParams, body: ReplanInitiativeBody }),
+  upload.array("files", 5),
   asyncHandler(async (req, res) => {
-    const id = req.params.id as string;
-    const { additionalContext } = req.body as ReplanInitiativeBody;
+    const idResult = InitiativeIdParams.safeParse(req.params);
+    if (!idResult.success) throw new AppError(400, "ID inválido");
+
+    const bodyResult = ReplanInitiativeBody.safeParse(req.body);
+    if (!bodyResult.success) throw new AppError(400, "Contexto adicional requerido");
+
+    const id = idResult.data.id;
+    const { additionalContext } = bodyResult.data;
 
     const initiative = await initiativeService.getInitiativeById(id);
-    if (!initiative) throw new AppError(404, "Initiative not found");
+    if (!initiative) throw new AppError(404, "Iniciativa no encontrada");
 
     if (initiative.status !== "needs_info" && initiative.status !== "failed") {
-      throw new AppError(400, `Cannot replan initiative with status "${initiative.status}". Must be "needs_info" or "failed".`);
+      throw new AppError(400, `No se puede replanificar una iniciativa con status "${initiative.status}". Debe ser "needs_info" o "failed".`);
+    }
+
+    // Extract text from attached files
+    const files = (req.files as Express.Multer.File[]) ?? [];
+    const attachments = files.length > 0 ? await extractTextFromFiles(files) : [];
+
+    // Build full context with file contents
+    let fullContext = additionalContext;
+    if (attachments.length > 0) {
+      const fileTexts = attachments
+        .map((a) => `--- Archivo: ${a.filename} ---\n${a.text}`)
+        .join("\n\n");
+      fullContext = `${additionalContext}\n\n${fileTexts}`;
     }
 
     // Merge additional context into metadata
     const currentMetadata = (initiative.metadata as Record<string, unknown>) ?? {};
     const existingContext = (currentMetadata.additionalContext as string) ?? "";
     const mergedContext = existingContext
-      ? `${existingContext}\n\n---\n\n${additionalContext}`
-      : additionalContext;
+      ? `${existingContext}\n\n---\n\n${fullContext}`
+      : fullContext;
 
     await initiativeService.updateInitiative(id, {
       metadata: { ...currentMetadata, additionalContext: mergedContext },
@@ -132,7 +167,7 @@ initiativeRouter.post(
       baseBranch,
     });
 
-    res.json({ message: "Re-planning initiated", initiativeId: id });
+    res.json({ message: "Re-planificación iniciada", initiativeId: id });
   }),
 );
 
@@ -144,7 +179,7 @@ initiativeRouter.get(
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
     const initiative = await initiativeService.getInitiativeById(id);
-    if (!initiative) throw new AppError(404, "Initiative not found");
+    if (!initiative) throw new AppError(404, "Iniciativa no encontrada");
 
     const metadata = (initiative.metadata as Record<string, unknown>) ?? {};
     const questions = metadata.plannerQuestions ?? [];
@@ -156,6 +191,21 @@ initiativeRouter.get(
       analysis,
       questions,
     });
+  }),
+);
+
+// DELETE /api/initiatives/:id - Delete an initiative
+initiativeRouter.delete(
+  "/initiatives/:id",
+  authMiddleware,
+  validate({ params: InitiativeIdParams }),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id as string;
+    const initiative = await initiativeService.getInitiativeById(id);
+    if (!initiative) throw new AppError(404, "Iniciativa no encontrada");
+
+    await initiativeService.deleteInitiative(id);
+    res.json({ message: "Iniciativa eliminada" });
   }),
 );
 
@@ -189,7 +239,7 @@ initiativeRouter.get(
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
     const initiative = await initiativeService.getInitiativeById(id);
-    if (!initiative) throw new AppError(404, "Initiative not found");
+    if (!initiative) throw new AppError(404, "Iniciativa no encontrada");
 
     const plan = await planService.getActivePlan(id);
     const features = await featureService.getFeaturesByInitiative(id);
