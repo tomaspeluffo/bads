@@ -12,7 +12,7 @@ export async function createFeature(data: InsertFeature): Promise<Feature> {
       data.sequence_order,
       data.title,
       data.description,
-      data.acceptance_criteria ?? null,
+      data.acceptance_criteria ? JSON.stringify(data.acceptance_criteria) : null,
       data.branch_name ?? null,
       data.status ?? "pending",
       data.retry_count ?? 0,

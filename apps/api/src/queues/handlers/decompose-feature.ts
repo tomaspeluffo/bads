@@ -1,15 +1,13 @@
 import type { DecomposeFeatureData } from "../jobs.js";
-import { enqueueDevelopFeature } from "../jobs.js";
 import * as featureService from "../../services/feature.service.js";
 import * as taskService from "../../services/task.service.js";
 import { runTaskDecomposerAgent } from "../../agents/task-decomposer.agent.js";
-import * as githubService from "../../services/github.service.js";
 import { createChildLogger } from "../../lib/logger.js";
 
 const log = createChildLogger({ handler: "decompose-feature" });
 
 export async function handleDecomposeFeature(data: DecomposeFeatureData): Promise<void> {
-  const { initiativeId, featureId, targetRepo, baseBranch } = data;
+  const { initiativeId, featureId, targetRepo } = data;
 
   await featureService.updateFeatureStatus(featureId, "decomposing");
 
@@ -17,9 +15,19 @@ export async function handleDecomposeFeature(data: DecomposeFeatureData): Promis
     const feature = await featureService.getFeatureById(featureId);
     if (!feature) throw new Error(`Feature ${featureId} not found`);
 
-    // 1. Get codebase context
-    log.info({ featureId, targetRepo }, "Fetching codebase context");
-    const fileTree = await githubService.getFileTree(targetRepo, baseBranch);
+    // 1. Get codebase context (optional — works without GitHub)
+    let fileTree: string[] = [];
+    if (targetRepo) {
+      try {
+        const githubService = await import("../../services/github.service.js");
+        fileTree = await githubService.getFileTree(targetRepo, data.baseBranch);
+        log.info({ featureId, targetRepo, fileCount: fileTree.length }, "Fetched codebase context");
+      } catch (err) {
+        log.warn({ err, featureId, targetRepo }, "No se pudo obtener el file tree de GitHub, continuando sin contexto de codebase");
+      }
+    } else {
+      log.info({ featureId }, "Sin repositorio configurado, descomponiendo sin contexto de codebase");
+    }
 
     // 2. Run Task Decomposer Agent
     log.info({ featureId }, "Running Task Decomposer Agent");
@@ -42,18 +50,8 @@ export async function handleDecomposeFeature(data: DecomposeFeatureData): Promis
 
     await taskService.createTasks(taskInserts);
 
-    // 4. Create branch for feature
-    const branchName = `bads/${feature.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50)}-${featureId.slice(0, 8)}`;
-    await githubService.createBranch(targetRepo, baseBranch, branchName);
-    await featureService.updateFeatureStatus(featureId, "developing", { branch_name: branchName });
-
-    // 5. Enqueue development
-    await enqueueDevelopFeature({
-      initiativeId,
-      featureId,
-      targetRepo,
-      baseBranch,
-    });
+    // 4. Mark feature as decomposed (branch creation and development happen later when GitHub is needed)
+    await featureService.updateFeatureStatus(featureId, "developing");
 
     log.info({ featureId, taskCount: taskInserts.length }, "Feature decomposed");
   } catch (err) {
