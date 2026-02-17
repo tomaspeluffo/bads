@@ -3,5 +3,5 @@ import { env } from "../config/env.js";
 
 export const anthropic = new Anthropic({
   apiKey: env.ANTHROPIC_API_KEY,
-  maxRetries: 5,
+  maxRetries: 2,
 });

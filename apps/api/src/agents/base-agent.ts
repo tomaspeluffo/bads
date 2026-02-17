@@ -8,6 +8,43 @@ import AnthropicSDK from "@anthropic-ai/sdk";
 
 const log = createChildLogger({ module: "agent" });
 
+/**
+ * Extract the first valid JSON object/array from a model response.
+ * Handles markdown fences, trailing text, and other noise.
+ */
+export function extractJSON<T>(raw: string): T {
+  // Strip markdown fences
+  let text = raw.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+
+  // Find the first { or [ and extract the balanced JSON
+  const startChar = text.indexOf("{") <= text.indexOf("[") && text.indexOf("{") !== -1
+    ? "{"
+    : "[";
+  const startIdx = text.indexOf(startChar);
+  if (startIdx === -1) throw new Error("No JSON found in response");
+
+  const closeChar = startChar === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = startIdx; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === startChar) depth++;
+    if (ch === closeChar) depth--;
+    if (depth === 0) {
+      return JSON.parse(text.slice(startIdx, i + 1)) as T;
+    }
+  }
+
+  // Fallback: try parsing the whole cleaned text
+  return JSON.parse(text) as T;
+}
+
 function isOverloadedError(err: unknown): boolean {
   return err instanceof AnthropicSDK.APIError && err.status === 529;
 }

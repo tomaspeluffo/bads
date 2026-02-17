@@ -1,4 +1,4 @@
-import { callAgent } from "./base-agent.js";
+import { callAgent, extractJSON } from "./base-agent.js";
 import { MODELS, MAX_TOKENS } from "../config/constants.js";
 import type { Feature } from "../models/feature.js";
 
@@ -17,37 +17,21 @@ export async function runTaskDecomposerAgent(opts: {
   feature: Feature;
   fileTree: string[];
 }): Promise<TaskDecomposition> {
-  const system = `Sos un desarrollador senior. Descomponés features en tasks atómicas. Cada task es un cambio independiente.
+  const system = `Descomponés features en tasks atómicas. Cada task = 1 cambio independiente.
 
-Cada task tiene:
-- title: título corto
-- description: qué hacer técnicamente (2-3 oraciones)
-- taskType: create_file | modify_file | create_test | modify_test | create_config | delete_file
-- filePaths: archivos afectados
-- prompt: markdown para copiar a Claude Code (ver formato abajo)
+Cada task: title, description (2-3 oraciones), taskType (create_file|modify_file|create_test|modify_test|create_config|delete_file), filePaths, prompt (markdown conciso, máx 20 líneas).
 
-El prompt es un markdown conciso que alguien puede pegar en Claude Code para implementar la task. Formato:
-
-# {título de la task}
-
+Formato del prompt:
+# {título}
 ## Contexto
-{1-2 oraciones sobre el feature y el proyecto}
-
+{1-2 oraciones}
 ## Qué hacer
-{instrucciones concretas, paso a paso}
-
+{pasos concretos}
 ## Archivos
-{lista de archivos a crear/modificar}
+{lista}
 
-## Criterios de aceptación
-{los que apliquen de la feature}
-
-IMPORTANTE: El prompt debe ser CONCISO. No repetir información innecesaria. Máximo 30 líneas por prompt.
-
-Respondé SOLO con JSON válido:
-{"tasks":[{"title":"...","description":"...","taskType":"...","filePaths":["..."],"prompt":"..."}]}
-
-Ordená por dependencia. Incluí tests después de implementación.`;
+Respondé SOLO JSON: {"tasks":[{"title":"...","description":"...","taskType":"...","filePaths":["..."],"prompt":"..."}]}
+Ordená por dependencia. Tests después de implementación.`;
 
   const userStoryBlock = opts.feature.user_story
     ? `\nUser Story: ${opts.feature.user_story}`
@@ -60,8 +44,8 @@ Descripción: ${opts.feature.description}${userStoryBlock}
 Criterios de aceptación:
 ${(opts.feature.acceptance_criteria ?? []).map((c) => `- ${c}`).join("\n") || "No especificados"}
 
-File tree (primeros 150):
-${opts.fileTree.slice(0, 150).join("\n")}${opts.fileTree.length > 150 ? `\n... +${opts.fileTree.length - 150} archivos más` : ""}`;
+File tree:
+${opts.fileTree.slice(0, 50).join("\n")}${opts.fileTree.length > 50 ? `\n... +${opts.fileTree.length - 50} más` : ""}`;
 
   const result = await callAgent({
     agent: "task_decomposer",
@@ -77,10 +61,5 @@ ${opts.fileTree.slice(0, 150).join("\n")}${opts.fileTree.length > 150 ? `\n... +
     throw new Error("Task decomposer response was truncated (max_tokens reached). The feature may be too complex.");
   }
 
-  const cleaned = result.content
-    .replace(/^```(?:json)?\s*\n?/i, "")
-    .replace(/\n?```\s*$/i, "")
-    .trim();
-
-  return JSON.parse(cleaned) as TaskDecomposition;
+  return extractJSON<TaskDecomposition>(result.content);
 }

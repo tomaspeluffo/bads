@@ -1,4 +1,4 @@
-import { callAgent } from "./base-agent.js";
+import { callAgent, extractJSON } from "./base-agent.js";
 import { MODELS, MAX_TOKENS } from "../config/constants.js";
 import * as memoryService from "../services/memory.service.js";
 import type { NotionPageContent } from "../services/notion.service.js";
@@ -77,18 +77,25 @@ Si está completo:
     ? `\n\n**Contexto adicional (respuestas a preguntas anteriores):**\n${opts.additionalContext}`
     : "";
 
+  // Only include fields that have actual content to reduce token usage
+  const fields: string[] = [
+    `**Título:** ${opts.notionContent.title}`,
+    `**Problema:** ${opts.notionContent.problem}`,
+    `**Solución:** ${opts.notionContent.solutionSketch}`,
+  ];
+  const noGos = opts.notionContent.noGos.join(", ");
+  if (noGos) fields.push(`**No-Gos:** ${noGos}`);
+  const risks = opts.notionContent.risks.join(", ");
+  if (risks) fields.push(`**Riesgos:** ${risks}`);
+  if (opts.notionContent.successCriteria) fields.push(`**KPIs:** ${opts.notionContent.successCriteria}`);
+  if (opts.notionContent.techStack) fields.push(`**Stack:** ${opts.notionContent.techStack}`);
+  if (opts.notionContent.additionalNotes) fields.push(`**Notas:** ${opts.notionContent.additionalNotes}`);
+  if (opts.notionContent.responsable) fields.push(`**Responsable:** ${opts.notionContent.responsable}`);
+  if (opts.notionContent.soporte) fields.push(`**Soporte:** ${opts.notionContent.soporte}`);
+
   const userMessage = `Analizá este pitch y creá un plan (o pedí info faltante):
 
-**Título:** ${opts.notionContent.title}
-**Problema:** ${opts.notionContent.problem}
-**Solución:** ${opts.notionContent.solutionSketch}
-**No-Gos:** ${opts.notionContent.noGos.join(", ") || "No especificados"}
-**Riesgos:** ${opts.notionContent.risks.join(", ") || "No especificados"}
-**KPIs:** ${opts.notionContent.successCriteria || "No especificados"}
-**Stack:** ${opts.notionContent.techStack || "No especificado"}
-**Notas:** ${opts.notionContent.additionalNotes || "No especificadas"}
-**Responsable:** ${opts.notionContent.responsable || "No especificado"}
-**Soporte:** ${opts.notionContent.soporte || "No especificado"}${attachmentsBlock}${additionalBlock}`;
+${fields.join("\n")}${attachmentsBlock}${additionalBlock}`;
 
   const result = await callAgent({
     agent: "planner",
@@ -103,7 +110,5 @@ Si está completo:
     throw new Error("La respuesta del planificador fue truncada (max_tokens). El pitch puede ser demasiado largo o complejo.");
   }
 
-  // Strip markdown fences (```json ... ```) that the model sometimes adds
-  const cleaned = result.content.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
-  return JSON.parse(cleaned) as PlannerResult;
+  return extractJSON<PlannerResult>(result.content);
 }

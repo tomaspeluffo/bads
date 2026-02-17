@@ -1,9 +1,9 @@
 export const MODELS = {
-  PLANNER: "claude-sonnet-4-5-20250929",
-  TASK_DECOMPOSER: "claude-sonnet-4-5-20250929",
+  PLANNER: "claude-haiku-4-5-20251001",
+  TASK_DECOMPOSER: "claude-haiku-4-5-20251001",
 } as const;
 
-export const FALLBACK_MODEL = "claude-sonnet-4-20250514" as const;
+export const FALLBACK_MODEL = "claude-haiku-4-5-20251001" as const;
 
 export const AGENT_TIMEOUTS = {
   PLANNER: 120_000,
@@ -35,6 +35,6 @@ export const PAGINATION = {
 export const REJECTION_FEEDBACK_MIN_LENGTH = 10;
 
 export const MAX_TOKENS = {
-  PLANNER: 8192,
-  TASK_DECOMPOSER: 32000,
+  PLANNER: 6144,
+  TASK_DECOMPOSER: 8192,
 } as const;
