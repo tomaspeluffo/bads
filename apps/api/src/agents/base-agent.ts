@@ -105,11 +105,14 @@ async function createMessageWithFallback(
   params: Anthropic.MessageCreateParamsNonStreaming,
 ): Promise<Anthropic.Message> {
   try {
-    return await anthropic.messages.create(params);
+    // Use streaming to avoid SDK timeout for large max_tokens
+    const stream = anthropic.messages.stream({ ...params, stream: true });
+    return await stream.finalMessage();
   } catch (err) {
     if (isOverloadedError(err) && params.model !== FALLBACK_MODEL) {
       log.warn({ model: params.model, fallback: FALLBACK_MODEL }, "Model overloaded, retrying with fallback");
-      return await anthropic.messages.create({ ...params, model: FALLBACK_MODEL });
+      const stream = anthropic.messages.stream({ ...params, model: FALLBACK_MODEL, stream: true });
+      return await stream.finalMessage();
     }
     throw err;
   }
@@ -142,7 +145,7 @@ export async function callAgentWithTools(
       system: opts.system,
       messages,
       tools: opts.tools,
-    });
+    } as Anthropic.MessageCreateParamsNonStreaming);
 
     totalInputTokens += response.usage.input_tokens;
     totalOutputTokens += response.usage.output_tokens;

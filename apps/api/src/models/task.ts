@@ -18,6 +18,7 @@ export const TaskSchema = z.object({
   description: z.string(),
   task_type: z.string(),
   file_paths: z.array(z.string()).nullable(),
+  prompt: z.string().nullable(),
   status: z.enum(taskStatuses),
   agent_output: z.record(z.unknown()).nullable(),
   created_at: z.string(),
@@ -33,6 +34,7 @@ export const InsertTaskSchema = z.object({
   description: z.string().min(1),
   task_type: z.string().min(1),
   file_paths: z.array(z.string()).nullable().optional(),
+  prompt: z.string().nullable().optional(),
   status: z.enum(taskStatuses).default("to_do"),
   agent_output: z.record(z.unknown()).nullable().optional(),
 });

@@ -4,12 +4,11 @@ import {
   fetchQuestions,
   submitReplan,
   reuploadInitiative,
-  approveFeature,
-  rejectFeature,
-  moveFeature,
   uploadInitiative,
   deleteInitiative,
   updateInitiativeRepo,
+  decomposeFeature,
+  updateTaskStatus,
 } from "@/lib/api";
 import type { UploadInitiativeInput, ReuploadInitiativeInput } from "@/lib/api";
 
@@ -79,32 +78,21 @@ export function useReuploadInitiative(initiativeId: string) {
   });
 }
 
-export function useApproveFeature(initiativeId: string) {
+export function useDecomposeFeature(initiativeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (featureId: string) => approveFeature(initiativeId, featureId),
+    mutationFn: (featureId: string) => decomposeFeature(initiativeId, featureId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
     },
   });
 }
 
-export function useRejectFeature(initiativeId: string) {
+export function useUpdateTaskStatus(initiativeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ featureId, feedback }: { featureId: string; feedback: string }) =>
-      rejectFeature(initiativeId, featureId, feedback),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
-    },
-  });
-}
-
-export function useMoveFeature(initiativeId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ featureId, targetColumn }: { featureId: string; targetColumn: "in_progress" | "review" }) =>
-      moveFeature(initiativeId, featureId, targetColumn),
+    mutationFn: ({ featureId, taskId, status }: { featureId: string; taskId: string; status: string }) =>
+      updateTaskStatus(initiativeId, featureId, taskId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
     },

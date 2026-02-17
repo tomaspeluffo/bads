@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { StatusBadge } from "@/components/StatusBadge";
-import { FeatureCard } from "@/components/FeatureCard";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { FeatureKanbanBoard } from "@/components/kanban/FeatureKanbanBoard";
 import { RepoSelector } from "@/components/RepoSelector";
@@ -25,9 +24,8 @@ import {
   useQuestions,
   useReplan,
   useReuploadInitiative,
-  useApproveFeature,
-  useRejectFeature,
-  useMoveFeature,
+  useDecomposeFeature,
+  useUpdateTaskStatus,
   useDeleteInitiative,
   useUpdateRepo,
 } from "@/hooks/useInitiative";
@@ -46,11 +44,11 @@ export function InitiativeDetailPage() {
   const { data: questionsData } = useQuestions(initiativeId!);
   const replan = useReplan(initiativeId!);
   const reupload = useReuploadInitiative(initiativeId!);
-  const approve = useApproveFeature(initiativeId!);
-  const reject = useRejectFeature(initiativeId!);
-  const move = useMoveFeature(initiativeId!);
+  const decompose = useDecomposeFeature(initiativeId!);
+  const updateTaskStatus = useUpdateTaskStatus(initiativeId!);
   const deleteInit = useDeleteInitiative();
   const updateRepo = useUpdateRepo(initiativeId!);
+  const [activeTab, setActiveTab] = useState<"features" | "tasks">("features");
   const [answer, setAnswer] = useState("");
   const [replanFiles, setReplanFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,9 +187,6 @@ export function InitiativeDetailPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">{initiative.title}</h1>
-          {initiative.error_message && (
-            <p className="text-sm text-red-600 mt-1">{initiative.error_message}</p>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={initiative.status} />
@@ -424,7 +419,7 @@ export function InitiativeDetailPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {(initiative.raw_content as any)?.problem || (initiative.raw_content as any)?.description || "Sin descripción disponible."}
+                {(initiative.raw_content as Record<string, unknown>)?.problem as string || (initiative.raw_content as Record<string, unknown>)?.description as string || "Sin descripción disponible."}
               </p>
               <p className="text-xs text-muted-foreground">
                 {initiative.plan.feature_count} features
@@ -532,32 +527,57 @@ export function InitiativeDetailPage() {
           </>
         )}
 
-      {/* Lista de features */}
+      {/* Tableros */}
       {initiative.features.length > 0 && (
         <>
-          <h2 className="text-xl font-semibold">Features</h2>
           {!hasRepo && (
             <p className="text-sm text-yellow-600">
-              Configura el repositorio para poder aprobar o rechazar features.
+              Configura el repositorio para poder descomponer features.
             </p>
           )}
-          <div className="mt-4">
-             <FeatureKanbanBoard
-              features={initiative.features}
-              onApprove={(fid) => approve.mutate(fid)}
-              onReject={(fid, feedback) => reject.mutate({ featureId: fid, feedback })}
-              onMove={(fid, targetColumn) => move.mutate({ featureId: fid, targetColumn })}
-             />
+          <div className="flex gap-1 border-b">
+            <button
+              className={`px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                activeTab === "features"
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("features")}
+            >
+              Features
+            </button>
+            {initiative.features.some((f) => f.tasks.length > 0) && (
+              <button
+                className={`px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                  activeTab === "tasks"
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setActiveTab("tasks")}
+              >
+                Tareas
+              </button>
+            )}
           </div>
-          <Separator />
-        </>
-      )}
-
-      {/* Tablero Kanban */}
-      {initiative.features.some((f) => f.tasks.length > 0) && (
-        <>
-          <h2 className="text-xl font-semibold">Tablero de tareas</h2>
-          <KanbanBoard features={initiative.features} />
+          <div className="mt-4">
+            {activeTab === "features" && (
+              <FeatureKanbanBoard
+                features={initiative.features}
+                onDecompose={(fid) => decompose.mutate(fid)}
+                onTaskStatusChange={(taskId, featureId, status) =>
+                  updateTaskStatus.mutate({ featureId, taskId, status })
+                }
+              />
+            )}
+            {activeTab === "tasks" && (
+              <KanbanBoard
+                features={initiative.features}
+                onTaskStatusChange={(taskId, featureId, status) =>
+                  updateTaskStatus.mutate({ featureId, taskId, status })
+                }
+              />
+            )}
+          </div>
         </>
       )}
     </div>

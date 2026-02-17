@@ -2,105 +2,35 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { asyncHandler, AppError } from "../middleware/error-handler.js";
-import { FeatureActionParams, RejectFeatureBody, MoveFeatureBody } from "../models/api-schemas.js";
+import { z } from "zod";
+import { FeatureActionParams } from "../models/api-schemas.js";
+import { taskStatuses } from "../models/task.js";
 import * as featureService from "../services/feature.service.js";
 import * as initiativeService from "../services/initiative.service.js";
 import * as taskService from "../services/task.service.js";
-import { enqueueMergeFeature, enqueueDevelopFeature, enqueueDecomposeFeature, enqueueQAReview } from "../queues/jobs.js";
+import { enqueueDecomposeFeature } from "../queues/jobs.js";
+
+const TaskStatusParams = z.object({
+  id: z.string().uuid(),
+  fid: z.string().uuid(),
+  tid: z.string().uuid(),
+});
+
+const UpdateTaskStatusBody = z.object({
+  status: z.enum(taskStatuses),
+});
 
 export const featureRouter = Router();
 
-// POST /api/initiatives/:id/features/:fid/approve
+// POST /api/initiatives/:id/features/:fid/decompose
+// Starts decomposition for a pending or failed feature
 featureRouter.post(
-  "/initiatives/:id/features/:fid/approve",
+  "/initiatives/:id/features/:fid/decompose",
   authMiddleware,
   validate({ params: FeatureActionParams }),
   asyncHandler(async (req, res) => {
     const id = req.params.id as string;
     const fid = req.params.fid as string;
-
-    const initiative = await initiativeService.getInitiativeById(id);
-    if (!initiative) throw new AppError(404, "Initiative not found");
-
-    const feature = await featureService.getFeatureById(fid);
-    if (!feature || feature.initiative_id !== id) {
-      throw new AppError(404, "Feature not found");
-    }
-
-    if (feature.status !== "human_review") {
-      throw new AppError(400, "Feature is not in human_review status");
-    }
-
-    const metadata = initiative.metadata as Record<string, string> | null;
-    if (!metadata?.targetRepo) {
-      throw new AppError(400, "No se puede aprobar el feature: la iniciativa no tiene un repositorio configurado. Configurá el repositorio primero.");
-    }
-
-    await featureService.updateFeatureStatus(fid, "approved");
-
-    await enqueueMergeFeature({
-      initiativeId: id,
-      featureId: fid,
-      targetRepo: metadata.targetRepo,
-      baseBranch: metadata.baseBranch ?? "main",
-    });
-
-    res.json({ message: "Feature approved, merge in progress" });
-  }),
-);
-
-// POST /api/initiatives/:id/features/:fid/reject
-featureRouter.post(
-  "/initiatives/:id/features/:fid/reject",
-  authMiddleware,
-  validate({ params: FeatureActionParams, body: RejectFeatureBody }),
-  asyncHandler(async (req, res) => {
-    const id = req.params.id as string;
-    const fid = req.params.fid as string;
-    const { feedback } = req.body as RejectFeatureBody;
-
-    const initiative = await initiativeService.getInitiativeById(id);
-    if (!initiative) throw new AppError(404, "Initiative not found");
-
-    const feature = await featureService.getFeatureById(fid);
-    if (!feature || feature.initiative_id !== id) {
-      throw new AppError(404, "Feature not found");
-    }
-
-    if (feature.status !== "human_review") {
-      throw new AppError(400, "Feature is not in human_review status");
-    }
-
-    const metadata = initiative.metadata as Record<string, string> | null;
-    if (!metadata?.targetRepo) {
-      throw new AppError(400, "No se puede rechazar y re-desarrollar el feature: la iniciativa no tiene un repositorio configurado. Configurá el repositorio primero.");
-    }
-
-    await featureService.updateFeatureStatus(fid, "rejected", {
-      rejection_feedback: feedback,
-    });
-
-    await enqueueDevelopFeature({
-      initiativeId: id,
-      featureId: fid,
-      targetRepo: metadata.targetRepo,
-      baseBranch: metadata.baseBranch ?? "main",
-      rejectionFeedback: feedback,
-    });
-
-    res.json({ message: "Feature rejected, re-developing with feedback" });
-  }),
-);
-
-// POST /api/initiatives/:id/features/:fid/move
-featureRouter.post(
-  "/initiatives/:id/features/:fid/move",
-  authMiddleware,
-  validate({ params: FeatureActionParams, body: MoveFeatureBody }),
-  asyncHandler(async (req, res) => {
-    const id = req.params.id as string;
-    const fid = req.params.fid as string;
-    const { targetColumn } = req.body as MoveFeatureBody;
 
     const initiative = await initiativeService.getInitiativeById(id);
     if (!initiative) throw new AppError(404, "Initiative not found");
@@ -115,57 +45,44 @@ featureRouter.post(
       throw new AppError(404, "Feature not found");
     }
 
-    if (targetColumn === "in_progress") {
-      const allowedStatuses = ["pending", "failed", "rejected"];
-      if (!allowedStatuses.includes(feature.status)) {
-        throw new AppError(400, `No se puede mover a In Progress desde el estado "${feature.status}"`);
-      }
-
-      await initiativeService.updateInitiativeStatus(id, "in_progress");
-
-      // If feature already has tasks (failed during development), retry development
-      // instead of re-decomposing from scratch
-      const existingTasks = await taskService.getTasksByFeature(fid);
-      if (existingTasks.length > 0) {
-        // Reset failed tasks to to_do so they get picked up again
-        for (const task of existingTasks) {
-          if (task.status === "failed" || task.status === "doing") {
-            await taskService.updateTaskStatus(task.id, "to_do");
-          }
-        }
-
-        await enqueueDevelopFeature({
-          initiativeId: id,
-          featureId: fid,
-          targetRepo: metadata.targetRepo,
-          baseBranch: metadata.baseBranch ?? "main",
-        });
-
-        res.json({ message: "Feature movida a In Progress, retomando desarrollo" });
-      } else {
-        await enqueueDecomposeFeature({
-          initiativeId: id,
-          featureId: fid,
-          targetRepo: metadata.targetRepo,
-          baseBranch: metadata.baseBranch ?? "main",
-        });
-
-        res.json({ message: "Feature movida a In Progress, decompose iniciado" });
-      }
-    } else {
-      // targetColumn === "review"
-      if (feature.status !== "developing") {
-        throw new AppError(400, `No se puede mover a Review desde el estado "${feature.status}"`);
-      }
-
-      await enqueueQAReview({
-        initiativeId: id,
-        featureId: fid,
-        targetRepo: metadata.targetRepo,
-        baseBranch: metadata.baseBranch ?? "main",
-      });
-
-      res.json({ message: "Feature movida a Review, QA review iniciado" });
+    const allowedStatuses = ["pending", "failed"];
+    if (!allowedStatuses.includes(feature.status)) {
+      throw new AppError(400, `No se puede descomponer desde el estado "${feature.status}"`);
     }
+
+    await initiativeService.updateInitiativeStatus(id, "in_progress");
+
+    await enqueueDecomposeFeature({
+      initiativeId: id,
+      featureId: fid,
+      targetRepo: metadata.targetRepo,
+      baseBranch: metadata.baseBranch ?? "main",
+    });
+
+    res.json({ message: "Descomposición iniciada" });
+  }),
+);
+
+// PATCH /api/initiatives/:id/features/:fid/tasks/:tid/status
+featureRouter.patch(
+  "/initiatives/:id/features/:fid/tasks/:tid/status",
+  authMiddleware,
+  validate({ params: TaskStatusParams, body: UpdateTaskStatusBody }),
+  asyncHandler(async (req, res) => {
+    const { id, fid, tid } = req.params as { id: string; fid: string; tid: string };
+    const { status } = req.body as { status: string };
+
+    const feature = await featureService.getFeatureById(fid);
+    if (!feature || feature.initiative_id !== id) {
+      throw new AppError(404, "Feature not found");
+    }
+
+    const task = await taskService.getTaskById(tid);
+    if (!task || task.feature_id !== fid) {
+      throw new AppError(404, "Task not found");
+    }
+
+    const updated = await taskService.updateTaskStatus(tid, status as typeof taskStatuses[number]);
+    res.json(updated);
   }),
 );

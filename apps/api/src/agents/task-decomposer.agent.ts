@@ -8,6 +8,7 @@ export interface TaskDecomposition {
     description: string;
     taskType: string;
     filePaths: string[];
+    prompt: string;
   }>;
 }
 
@@ -16,52 +17,51 @@ export async function runTaskDecomposerAgent(opts: {
   feature: Feature;
   fileTree: string[];
 }): Promise<TaskDecomposition> {
-  const system = `You are a senior developer breaking down a feature into atomic tasks. Each task should be a single, focused change that can be implemented independently.
+  const system = `Sos un desarrollador senior. Descomponés features en tasks atómicas. Cada task es un cambio independiente.
 
-Each task MUST include:
-1. A **description** with detailed technical instructions: what to implement, which patterns to follow, specific code changes needed.
-2. A **taskType** indicating the kind of change.
-3. **filePaths** listing the files affected.
+Cada task tiene:
+- title: título corto
+- description: qué hacer técnicamente (2-3 oraciones)
+- taskType: create_file | modify_file | create_test | modify_test | create_config | delete_file
+- filePaths: archivos afectados
+- prompt: markdown para copiar a Claude Code (ver formato abajo)
 
-The user story and acceptance criteria are defined at the feature level (provided below). Tasks are purely technical — focus on WHAT to implement and HOW.
+El prompt es un markdown conciso que alguien puede pegar en Claude Code para implementar la task. Formato:
 
-Task types: create_file, modify_file, create_test, modify_test, create_config, delete_file
+# {título de la task}
 
-You must respond with valid JSON only, no other text. Use this exact format:
-{
-  "tasks": [
-    {
-      "title": "Short task title",
-      "description": "Detailed technical description of what to do, including specific code changes, patterns to follow, and implementation details",
-      "taskType": "create_file|modify_file|create_test|etc",
-      "filePaths": ["path/to/file.ts"]
-    }
-  ]
-}
+## Contexto
+{1-2 oraciones sobre el feature y el proyecto}
 
-Order tasks by dependency - tasks that create files others depend on should come first.
-Always include test tasks after implementation tasks.`;
+## Qué hacer
+{instrucciones concretas, paso a paso}
+
+## Archivos
+{lista de archivos a crear/modificar}
+
+## Criterios de aceptación
+{los que apliquen de la feature}
+
+IMPORTANTE: El prompt debe ser CONCISO. No repetir información innecesaria. Máximo 30 líneas por prompt.
+
+Respondé SOLO con JSON válido:
+{"tasks":[{"title":"...","description":"...","taskType":"...","filePaths":["..."],"prompt":"..."}]}
+
+Ordená por dependencia. Incluí tests después de implementación.`;
 
   const userStoryBlock = opts.feature.user_story
-    ? `\n**User Story:** ${opts.feature.user_story}`
+    ? `\nUser Story: ${opts.feature.user_story}`
     : "";
 
-  const developerContextBlock = opts.feature.developer_context
-    ? `\n**Developer Context:** ${opts.feature.developer_context}`
-    : "";
+  const userMessage = `Descomponé este feature en tasks:
 
-  const userMessage = `Break down this feature into atomic tasks:
+Feature: ${opts.feature.title}
+Descripción: ${opts.feature.description}${userStoryBlock}
+Criterios de aceptación:
+${(opts.feature.acceptance_criteria ?? []).map((c) => `- ${c}`).join("\n") || "No especificados"}
 
-**Feature:** ${opts.feature.title}
-
-**Description:** ${opts.feature.description}
-${userStoryBlock}
-**Acceptance Criteria:**
-${(opts.feature.acceptance_criteria ?? []).map((c) => `- ${c}`).join("\n") || "None specified"}
-${developerContextBlock}
-**Existing file tree (relevant paths):**
-${opts.fileTree.slice(0, 200).join("\n")}
-${opts.fileTree.length > 200 ? `... and ${opts.fileTree.length - 200} more files` : ""}`;
+File tree (primeros 150):
+${opts.fileTree.slice(0, 150).join("\n")}${opts.fileTree.length > 150 ? `\n... +${opts.fileTree.length - 150} archivos más` : ""}`;
 
   const result = await callAgent({
     agent: "task_decomposer",

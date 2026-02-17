@@ -1,27 +1,19 @@
 export const MODELS = {
   PLANNER: "claude-sonnet-4-5-20250929",
   TASK_DECOMPOSER: "claude-sonnet-4-5-20250929",
-  DEVELOPER: "claude-sonnet-4-5-20250929",
-  QA: "claude-sonnet-4-5-20250929",
 } as const;
 
 export const FALLBACK_MODEL = "claude-sonnet-4-20250514" as const;
 
 export const AGENT_TIMEOUTS = {
   PLANNER: 120_000,
-  TASK_DECOMPOSER: 90_000,
-  DEVELOPER: 300_000,
-  QA: 120_000,
+  TASK_DECOMPOSER: 120_000,
 } as const;
 
 export const AGENT_MAX_RETRIES = {
   PLANNER: 2,
   TASK_DECOMPOSER: 2,
-  DEVELOPER: 2,
-  QA: 2,
 } as const;
-
-export const QA_MAX_REJECTION_RETRIES = 2;
 
 export const QUEUE = {
   NAME: "initiative-pipeline",
@@ -43,8 +35,6 @@ export const PAGINATION = {
 export const REJECTION_FEEDBACK_MIN_LENGTH = 10;
 
 export const MAX_TOKENS = {
-  PLANNER: 16384,
-  TASK_DECOMPOSER: 16384,
-  DEVELOPER: 8192,
-  QA: 4096,
+  PLANNER: 8192,
+  TASK_DECOMPOSER: 32000,
 } as const;

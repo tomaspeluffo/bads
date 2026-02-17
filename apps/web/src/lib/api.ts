@@ -220,29 +220,19 @@ export async function reuploadInitiative(
   await api.put(`/initiatives/${id}/reupload`, formData);
 }
 
-export async function approveFeature(
+export async function decomposeFeature(
   initiativeId: string,
   featureId: string,
 ): Promise<void> {
-  await api.post(`/initiatives/${initiativeId}/features/${featureId}/approve`);
+  await api.post(`/initiatives/${initiativeId}/features/${featureId}/decompose`);
 }
 
-export async function moveFeature(
+export async function updateTaskStatus(
   initiativeId: string,
   featureId: string,
-  targetColumn: "in_progress" | "review",
+  taskId: string,
+  status: string,
 ): Promise<void> {
-  await api.post(`/initiatives/${initiativeId}/features/${featureId}/move`, {
-    targetColumn,
-  });
+  await api.patch(`/initiatives/${initiativeId}/features/${featureId}/tasks/${taskId}/status`, { status });
 }
 
-export async function rejectFeature(
-  initiativeId: string,
-  featureId: string,
-  feedback: string,
-): Promise<void> {
-  await api.post(`/initiatives/${initiativeId}/features/${featureId}/reject`, {
-    feedback,
-  });
-}

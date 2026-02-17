@@ -3,6 +3,7 @@ import { z } from "zod";
 export const featureStatuses = [
   "pending",
   "decomposing",
+  "decomposed",
   "developing",
   "qa_review",
   "human_review",

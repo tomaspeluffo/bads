@@ -14,6 +14,7 @@ const statusColors: Record<string, string> = {
 
   // Feature statuses
   decomposing: "bg-blue-100 text-blue-700",
+  decomposed: "bg-green-100 text-green-700",
   developing: "bg-blue-100 text-blue-700",
   qa_review: "bg-purple-100 text-purple-700",
   human_review: "bg-yellow-100 text-yellow-700",
@@ -33,6 +34,7 @@ const statusLabels: Record<string, string> = {
   needs_info: "Needs Info",
   in_progress: "In Progress",
   qa_review: "QA Review",
+  decomposed: "Listo",
   human_review: "Human Review",
   to_do: "To Do",
 };

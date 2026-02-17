@@ -3,57 +3,38 @@ import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useState } from "react";
 import { FeatureKanbanColumn } from "./FeatureKanbanColumn";
 import { FeatureCard } from "@/components/FeatureCard";
-import type { Feature, FeatureStatus } from "@/types";
+import type { Feature, FeatureStatus, TaskStatus } from "@/types";
 
 interface FeatureKanbanBoardProps {
   features: Feature[];
-  onApprove?: (featureId: string) => void;
-  onReject?: (featureId: string, feedback: string) => void;
-  onMove?: (featureId: string, targetColumn: "in_progress" | "review") => void;
+  onDecompose?: (featureId: string) => void;
+  onTaskStatusChange?: (taskId: string, featureId: string, status: TaskStatus) => void;
 }
 
-// Column IDs that map to backend targetColumn values
-const COLUMN_ID_IN_PROGRESS = "in_progress";
-const COLUMN_ID_REVIEW = "review";
-
-// Group definitions
 const columns: { id: string; title: string; statuses: FeatureStatus[] }[] = [
   {
     id: "backlog",
     title: "Backlog",
-    statuses: ["pending", "decomposing"],
+    statuses: ["pending"],
   },
   {
-    id: COLUMN_ID_IN_PROGRESS,
-    title: "In Progress",
-    statuses: ["developing"],
+    id: "decomposing",
+    title: "Descomponiendo",
+    statuses: ["decomposing"],
   },
   {
-    id: COLUMN_ID_REVIEW,
-    title: "Review",
-    statuses: ["qa_review", "human_review"],
-  },
-  {
-    id: "done",
-    title: "Done",
-    statuses: ["approved", "merging", "merged"],
+    id: "ready",
+    title: "Listo",
+    statuses: ["decomposed"],
   },
   {
     id: "failed",
-    title: "Failed / Rejected",
-    statuses: ["rejected", "failed"],
+    title: "Fallido",
+    statuses: ["failed"],
   },
 ];
 
-// Allowed moves: feature.status -> valid target column IDs
-const ALLOWED_MOVES: Record<string, string[]> = {
-  pending: [COLUMN_ID_IN_PROGRESS],
-  failed: [COLUMN_ID_IN_PROGRESS],
-  rejected: [COLUMN_ID_IN_PROGRESS],
-  developing: [COLUMN_ID_REVIEW],
-};
-
-export function FeatureKanbanBoard({ features, onApprove, onReject, onMove }: FeatureKanbanBoardProps) {
+export function FeatureKanbanBoard({ features, onDecompose, onTaskStatusChange }: FeatureKanbanBoardProps) {
   const [activeFeature, setActiveFeature] = useState<Feature | null>(null);
 
   const getFeaturesForColumn = (columnStatuses: FeatureStatus[]) => {
@@ -68,17 +49,14 @@ export function FeatureKanbanBoard({ features, onApprove, onReject, onMove }: Fe
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveFeature(null);
     const { active, over } = event;
-    if (!over || !onMove) return;
+    if (!over || !onDecompose) return;
 
     const feature = active.data.current?.feature as Feature | undefined;
     if (!feature) return;
 
-    const targetColumnId = over.id as string;
-    const allowed = ALLOWED_MOVES[feature.status] ?? [];
-    if (!allowed.includes(targetColumnId)) return;
-
-    if (targetColumnId === COLUMN_ID_IN_PROGRESS || targetColumnId === COLUMN_ID_REVIEW) {
-      onMove(feature.id, targetColumnId);
+    // Solo permitir mover de pending a decomposing
+    if (feature.status === "pending" && over.id === "decomposing") {
+      onDecompose(feature.id);
     }
   };
 
@@ -99,8 +77,7 @@ export function FeatureKanbanBoard({ features, onApprove, onReject, onMove }: Fe
               title={col.title}
               features={colFeatures}
               activeFeatureId={activeFeature?.id}
-              onApprove={onApprove}
-              onReject={onReject}
+              onTaskStatusChange={onTaskStatusChange}
             />
           );
         })}

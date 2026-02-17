@@ -6,21 +6,11 @@ import {
   type PipelineJobData,
   type PlanInitiativeData,
   type DecomposeFeatureData,
-  type DevelopFeatureData,
-  type QAReviewData,
-  type NotifyHumanData,
-  type MergeFeatureData,
-  type CompleteInitiativeData,
 } from "./jobs.js";
 import { createChildLogger } from "../lib/logger.js";
 import * as initiativeService from "../services/initiative.service.js";
 import { handlePlanInitiative } from "./handlers/plan-initiative.js";
 import { handleDecomposeFeature } from "./handlers/decompose-feature.js";
-import { handleDevelopFeature } from "./handlers/develop-feature.js";
-import { handleQAReview } from "./handlers/qa-review.js";
-import { handleNotifyHuman } from "./handlers/notify-human.js";
-import { handleMergeFeature } from "./handlers/merge-feature.js";
-import { handleCompleteInitiative } from "./handlers/complete-initiative.js";
 
 const log = createChildLogger({ module: "pipeline-worker" });
 
@@ -35,21 +25,6 @@ async function processJob(job: Job<PipelineJobData>): Promise<void> {
     case JobType.DECOMPOSE_FEATURE:
       await handleDecomposeFeature(data as DecomposeFeatureData);
       break;
-    case JobType.DEVELOP_FEATURE:
-      await handleDevelopFeature(data as DevelopFeatureData);
-      break;
-    case JobType.QA_REVIEW:
-      await handleQAReview(data as QAReviewData);
-      break;
-    case JobType.NOTIFY_HUMAN:
-      await handleNotifyHuman(data as NotifyHumanData);
-      break;
-    case JobType.MERGE_FEATURE:
-      await handleMergeFeature(data as MergeFeatureData);
-      break;
-    case JobType.COMPLETE_INITIATIVE:
-      await handleCompleteInitiative(data as CompleteInitiativeData);
-      break;
     default:
       log.error({ data }, "Unknown job type");
   }
@@ -62,6 +37,8 @@ export function createPipelineWorker() {
     connection: createRedisConnection(),
     concurrency: QUEUE.CONCURRENCY,
     lockDuration: QUEUE.LOCK_DURATION,
+    stalledInterval: 5 * 60 * 1000, // Check for stalled jobs every 5 min (default 30s is too aggressive for AI calls)
+    maxStalledCount: 3, // Allow up to 3 stall detections before marking as failed
   });
 
   worker.on("failed", async (job, err) => {

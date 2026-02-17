@@ -13,6 +13,7 @@ export type InitiativeStatus =
 export type FeatureStatus =
   | "pending"
   | "decomposing"
+  | "decomposed"
   | "developing"
   | "qa_review"
   | "human_review"
@@ -86,6 +87,7 @@ export interface Task {
   description: string;
   task_type: string;
   file_paths: string[] | null;
+  prompt: string | null;
   status: TaskStatus;
   agent_output: Record<string, unknown> | null;
   created_at: string;

@@ -80,35 +80,16 @@ export async function ensureRepoInitialized(
     if (status !== 404 && status !== 409) throw err;
   }
 
-  // Repo is empty — create initial commit
+  // Repo is empty — create initial commit via Contents API (Git Data API doesn't work on empty repos)
   log.info({ targetRepo, baseBranch }, "Repo is empty, creating initial commit");
 
-  const { data: blob } = await octokit.git.createBlob({
+  await octokit.repos.createOrUpdateFileContents({
     owner,
     repo,
-    content: Buffer.from(`# ${repo}\n`).toString("base64"),
-    encoding: "base64",
-  });
-
-  const { data: tree } = await octokit.git.createTree({
-    owner,
-    repo,
-    tree: [{ path: "README.md", mode: "100644", type: "blob", sha: blob.sha }],
-  });
-
-  const { data: commit } = await octokit.git.createCommit({
-    owner,
-    repo,
+    path: "README.md",
     message: "Initial commit",
-    tree: tree.sha,
-    parents: [],
-  });
-
-  await octokit.git.createRef({
-    owner,
-    repo,
-    ref: `refs/heads/${baseBranch}`,
-    sha: commit.sha,
+    content: Buffer.from(`# ${repo}\n`).toString("base64"),
+    branch: baseBranch,
   });
 
   log.info({ targetRepo, baseBranch }, "Repo initialized with initial commit");

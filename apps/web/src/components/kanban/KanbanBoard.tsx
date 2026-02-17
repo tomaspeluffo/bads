@@ -3,21 +3,18 @@ import type { Feature, Task, TaskStatus } from "@/types";
 
 const columns: { key: TaskStatus; label: string }[] = [
   { key: "to_do", label: "To Do" },
-  { key: "doing", label: "Doing" },
-  { key: "review", label: "Review" },
   { key: "done", label: "Done" },
   { key: "failed", label: "Failed" },
 ];
 
 interface KanbanBoardProps {
   features: Feature[];
+  onTaskStatusChange?: (taskId: string, featureId: string, status: TaskStatus) => void;
 }
 
-export function KanbanBoard({ features }: KanbanBoardProps) {
-  const featureMap = new Map(features.map((f) => [f.id, f.title]));
-
-  const allTasks: { task: Task; featureName: string }[] = features.flatMap((f) =>
-    f.tasks.map((t) => ({ task: t, featureName: featureMap.get(f.id) ?? "" })),
+export function KanbanBoard({ features, onTaskStatusChange }: KanbanBoardProps) {
+  const allTasks: { task: Task; featureName: string; featureId: string }[] = features.flatMap((f) =>
+    f.tasks.map((t) => ({ task: t, featureName: f.title, featureId: f.id })),
   );
 
   const grouped = columns.map((col) => ({
@@ -26,9 +23,14 @@ export function KanbanBoard({ features }: KanbanBoardProps) {
   }));
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: 400 }}>
+    <div className="flex gap-4 overflow-x-auto pb-4 flex-1 h-full min-h-[500px]">
       {grouped.map((col) => (
-        <KanbanColumn key={col.key} title={col.label} tasks={col.tasks} />
+        <KanbanColumn
+          key={col.key}
+          title={col.label}
+          tasks={col.tasks}
+          onTaskStatusChange={onTaskStatusChange}
+        />
       ))}
     </div>
   );

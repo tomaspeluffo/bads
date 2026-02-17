@@ -3,8 +3,8 @@ import type { Task, TaskStatus, InsertTask } from "../models/task.js";
 
 export async function createTask(data: InsertTask): Promise<Task> {
   const result = await query<Task>(
-    `INSERT INTO tasks (feature_id, sequence_order, title, description, task_type, file_paths, status, agent_output)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO tasks (feature_id, sequence_order, title, description, task_type, file_paths, prompt, status, agent_output)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
     [
       data.feature_id,
@@ -13,6 +13,7 @@ export async function createTask(data: InsertTask): Promise<Task> {
       data.description,
       data.task_type,
       data.file_paths ?? null,
+      data.prompt ?? null,
       data.status ?? "to_do",
       data.agent_output ? JSON.stringify(data.agent_output) : null,
     ],

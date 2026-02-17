@@ -1,4 +1,4 @@
-import { type DecomposeFeatureData, enqueueDevelopFeature } from "../jobs.js";
+import type { DecomposeFeatureData } from "../jobs.js";
 import * as featureService from "../../services/feature.service.js";
 import * as taskService from "../../services/task.service.js";
 import { runTaskDecomposerAgent } from "../../agents/task-decomposer.agent.js";
@@ -39,7 +39,9 @@ export async function handleDecomposeFeature(data: DecomposeFeatureData): Promis
       fileTree,
     });
 
-    // 3. Store tasks
+    // 3. Delete existing tasks (in case of retry) and store new ones
+    await taskService.deleteTasksByFeature(featureId);
+
     const taskInserts = decomposition.tasks.map((t, i) => ({
       feature_id: featureId,
       sequence_order: i + 1,
@@ -47,22 +49,16 @@ export async function handleDecomposeFeature(data: DecomposeFeatureData): Promis
       description: t.description,
       task_type: t.taskType,
       file_paths: t.filePaths,
+      prompt: t.prompt ?? null,
       status: "to_do" as const,
     }));
 
     await taskService.createTasks(taskInserts);
 
-    // 4. Mark feature as decomposed and enqueue development
-    await featureService.updateFeatureStatus(featureId, "developing");
+    // 4. Mark feature as decomposed — pipeline ends here
+    await featureService.updateFeatureStatus(featureId, "decomposed");
 
-    await enqueueDevelopFeature({
-      initiativeId,
-      featureId,
-      targetRepo,
-      baseBranch: data.baseBranch,
-    });
-
-    log.info({ featureId, taskCount: taskInserts.length }, "Feature decomposed, development enqueued");
+    log.info({ featureId, taskCount: taskInserts.length }, "Feature decomposed successfully");
   } catch (err) {
     log.error({ err, featureId }, "Decompose feature failed");
     await featureService.updateFeatureStatus(featureId, "failed");

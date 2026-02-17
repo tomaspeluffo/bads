@@ -40,6 +40,33 @@ El cliente ya nos dio acceso de API a su tienda Shopify (tenemos el access token
 **Repositorio GitHub:**
 blumb-agency/shopify-dashboard
 
+**UI/UX y diseño del dashboard:**
+No hay mockups ni wireframes. El dashboard es una sola pagina principal con cards de metricas arriba (KPIs) y graficos abajo. Inspiracion: el dashboard de Shopify Analytics pero simplificado. No necesita filtros de fecha avanzados, solo selector de periodo (hoy, esta semana, este mes, ultimo mes). No necesita exportacion a PDF ni Excel por ahora. Es solo desktop, no necesita ser mobile.
+
+**Datos historicos:**
+Solo necesitamos los ultimos 3 meses de datos historicos en la carga inicial. Despues el sync cada 15 minutos mantiene todo actualizado. No necesitamos particionamiento ni nada complejo, con indices en las columnas de fecha alcanza.
+
+**Stock bajo:**
+Solo trackear inventario actual, no historico de movimientos. Es solo visualizacion, no hay acciones desde el dashboard (no marcar para reposicion ni nada). Simplemente mostrar la lista de productos con stock menor a 5 unidades.
+
+**Actualizacion en tiempo real:**
+No necesitamos tiempo real ni websockets. El sync cada 15 minutos es suficiente. El usuario puede hacer refresh manual si quiere datos mas frescos. No necesitamos alertas ni notificaciones por ahora.
+
+**Tasa de conversion (GA4 vs Shopify):**
+Usamos GA4 como fuente para sesiones y Shopify como fuente para ordenes completadas. La formula es: ordenes de Shopify / sesiones de GA4. No hay reconciliacion compleja, mostramos cada metrica de su fuente original. Si hay discrepancias menores entre GA4 y Shopify es aceptable.
+
+**API de Shopify:**
+Usar la REST Admin API de Shopify (version estable mas reciente, 2024-01 o superior). Los endpoints que necesitamos son: orders, products, inventory levels. No usar GraphQL, el cliente tiene un plan Basic que tiene mejores rate limits en REST.
+
+**Performance (KPI de 3 segundos):**
+Los 3 segundos son para la carga inicial del dashboard una vez logueado (primera vista). Como los datos ya estan en PostgreSQL (no pegamos a Shopify en cada request), con buen indexado y queries simples deberia ser rapido. La medicion es desde Argentina, pero con Vercel CDN para el frontend no deberia ser problema.
+
+**Repositorio y CI/CD:**
+El repo blumb-agency/shopify-dashboard no existe todavia, hay que crearlo desde cero. No hay CI/CD preexistente. Hacer deploy manual al principio, despues se puede configurar auto-deploy en Vercel y Railway.
+
+**Cron job de sincronizacion:**
+Usar node-cron dentro de la misma app Express. Es una app chica, no justifica un servicio separado. El cron corre en un thread separado y no bloquea las requests HTTP. Si en el futuro escala, se puede mover a Railway Cron Jobs.
+
 ---
 
-*Nota: Con estas respuestas el planner deberia tener suficiente info para armar el plan. Acordate de configurar el repo (blumb-agency/shopify-dashboard) desde la pagina de detalle de la iniciativa.*
+*Nota: Con estas respuestas el planner deberia tener suficiente info para armar el plan sin hacer mas preguntas. Acordate de configurar el repo (blumb-agency/shopify-dashboard) desde la pagina de detalle de la iniciativa.*
