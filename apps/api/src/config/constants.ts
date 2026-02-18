@@ -1,6 +1,7 @@
 export const MODELS = {
   PLANNER: "claude-haiku-4-5-20251001",
   TASK_DECOMPOSER: "claude-haiku-4-5-20251001",
+  PITCH_AGENT: "claude-haiku-4-5-20251001",
 } as const;
 
 export const FALLBACK_MODEL = "claude-haiku-4-5-20251001" as const;
@@ -8,11 +9,13 @@ export const FALLBACK_MODEL = "claude-haiku-4-5-20251001" as const;
 export const AGENT_TIMEOUTS = {
   PLANNER: 120_000,
   TASK_DECOMPOSER: 120_000,
+  PITCH_AGENT: 60_000,
 } as const;
 
 export const AGENT_MAX_RETRIES = {
   PLANNER: 2,
   TASK_DECOMPOSER: 2,
+  PITCH_AGENT: 2,
 } as const;
 
 export const QUEUE = {
@@ -37,4 +40,5 @@ export const REJECTION_FEEDBACK_MIN_LENGTH = 10;
 export const MAX_TOKENS = {
   PLANNER: 6144,
   TASK_DECOMPOSER: 8192,
+  PITCH_AGENT: 4096,
 } as const;

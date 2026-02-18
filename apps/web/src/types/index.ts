@@ -1,3 +1,33 @@
+// --- Pitch types ---
+
+export type PitchStatus = "pending" | "generating" | "ready" | "failed" | "converted";
+
+export interface PitchContent {
+  executive_summary: string;
+  problema: string;
+  solucion: string;
+  enfoque_tecnico: string;
+  entregables: string[];
+  metricas_de_exito: string[];
+  riesgos: string[];
+  proximos_pasos: string[];
+}
+
+export interface Pitch {
+  id: string;
+  client_id: string | null;
+  title: string;
+  brief: string;
+  client_name: string;
+  status: PitchStatus;
+  content: PitchContent | null;
+  error_message: string | null;
+  initiative_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // --- Status unions ---
 
 export type InitiativeStatus =

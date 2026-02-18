@@ -8,7 +8,7 @@ export async function logExecution(data: InsertAgentExecution): Promise<AgentExe
      RETURNING *`,
     [
       data.agent,
-      data.initiative_id,
+      data.initiative_id ?? null,
       data.feature_id ?? null,
       data.task_id ?? null,
       data.input_tokens,

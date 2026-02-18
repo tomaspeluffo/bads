@@ -51,7 +51,7 @@ function isOverloadedError(err: unknown): boolean {
 
 export interface AgentCallOptions {
   agent: AgentType;
-  initiativeId: string;
+  initiativeId?: string;
   featureId?: string;
   taskId?: string;
   model: string;
@@ -72,7 +72,7 @@ export interface AgentResult {
 
 export async function callAgent(opts: AgentCallOptions): Promise<AgentResult> {
   const start = Date.now();
-  const callLog = log.child({ agent: opts.agent, initiativeId: opts.initiativeId });
+  const callLog = log.child({ agent: opts.agent, ...(opts.initiativeId ? { initiativeId: opts.initiativeId } : {}) });
 
   callLog.info("Agent call started");
 
@@ -102,7 +102,7 @@ export async function callAgent(opts: AgentCallOptions): Promise<AgentResult> {
     // Log execution
     await logExecution({
       agent: opts.agent,
-      initiative_id: opts.initiativeId,
+      initiative_id: opts.initiativeId ?? null,
       feature_id: opts.featureId ?? null,
       task_id: opts.taskId ?? null,
       input_tokens: result.inputTokens,
@@ -123,7 +123,7 @@ export async function callAgent(opts: AgentCallOptions): Promise<AgentResult> {
 
     await logExecution({
       agent: opts.agent,
-      initiative_id: opts.initiativeId,
+      initiative_id: opts.initiativeId ?? null,
       feature_id: opts.featureId ?? null,
       task_id: opts.taskId ?? null,
       input_tokens: 0,
@@ -163,7 +163,7 @@ export async function callAgentWithTools(
   ) => Promise<string>,
 ): Promise<{ content: string; totalInputTokens: number; totalOutputTokens: number; durationMs: number }> {
   const start = Date.now();
-  const callLog = log.child({ agent: opts.agent, initiativeId: opts.initiativeId });
+  const callLog = log.child({ agent: opts.agent, ...(opts.initiativeId ? { initiativeId: opts.initiativeId } : {}) });
 
   let messages = [...opts.messages];
   let totalInputTokens = 0;
@@ -239,7 +239,7 @@ export async function callAgentWithTools(
   // Log execution
   await logExecution({
     agent: opts.agent,
-    initiative_id: opts.initiativeId,
+    initiative_id: opts.initiativeId ?? null,
     feature_id: opts.featureId ?? null,
     task_id: opts.taskId ?? null,
     input_tokens: totalInputTokens,

@@ -28,8 +28,6 @@ export const UploadInitiativeBody = z.object({
   successCriteria: z.string().default(""),
   techStack: z.string().default(""),
   additionalNotes: z.string().default(""),
-  responsable: z.string().default(""),
-  soporte: z.string().default(""),
   targetRepo: z.string().default(""),
   baseBranch: z.string().default("main"),
   clientId: z.string().uuid().optional(),
@@ -136,3 +134,30 @@ export type CreateRepoBody = z.infer<typeof CreateRepoBody>;
 // --- Webhooks ---
 
 export const NotionWebhookBody = z.object({}).passthrough();
+
+// --- Pitches ---
+
+export const CreatePitchBody = z.object({
+  title: z.string().min(1),
+  brief: z.string().min(10, "El brief debe tener al menos 10 caracteres"),
+  clientId: z.string().uuid().optional(),
+});
+
+export type CreatePitchBody = z.infer<typeof CreatePitchBody>;
+
+export const PitchIdParams = z.object({
+  pitchId: z.string().uuid(),
+});
+
+export const ListPitchesQuery = z.object({
+  clientId: z.string().uuid().optional(),
+  page: z.coerce.number().int().min(1).default(PAGINATION.DEFAULT_PAGE),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(PAGINATION.MAX_LIMIT)
+    .default(PAGINATION.DEFAULT_LIMIT),
+});
+
+export type ListPitchesQuery = z.infer<typeof ListPitchesQuery>;

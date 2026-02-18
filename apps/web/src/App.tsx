@@ -7,6 +7,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { ClientsPage } from "@/pages/ClientsPage";
 import { ClientDetailPage } from "@/pages/ClientDetailPage";
 import { InitiativeDetailPage } from "@/pages/InitiativeDetailPage";
+import { PitchDetailPage } from "@/pages/PitchDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/clients/:clientId" element={<ClientDetailPage />} />
             <Route path="/clients/:clientId/initiatives/:initiativeId" element={<InitiativeDetailPage />} />
+            <Route path="/clients/:clientId/pitches/:pitchId" element={<PitchDetailPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

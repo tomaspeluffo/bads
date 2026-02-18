@@ -90,8 +90,6 @@ Si está completo:
   if (opts.notionContent.successCriteria) fields.push(`**KPIs:** ${opts.notionContent.successCriteria}`);
   if (opts.notionContent.techStack) fields.push(`**Stack:** ${opts.notionContent.techStack}`);
   if (opts.notionContent.additionalNotes) fields.push(`**Notas:** ${opts.notionContent.additionalNotes}`);
-  if (opts.notionContent.responsable) fields.push(`**Responsable:** ${opts.notionContent.responsable}`);
-  if (opts.notionContent.soporte) fields.push(`**Soporte:** ${opts.notionContent.soporte}`);
 
   const userMessage = `Analizá este pitch y creá un plan (o pedí info faltante):
 

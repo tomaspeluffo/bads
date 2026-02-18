@@ -32,8 +32,6 @@ export function InitiativeForm({ clientId, onSuccess, onCancel }: InitiativeForm
     solutionSketch: "",
     successCriteria: "",
     techStack: "",
-    responsable: "",
-    soporte: "",
     targetRepo: "",
     baseBranch: "main",
     noGos: "",
@@ -67,13 +65,16 @@ export function InitiativeForm({ clientId, onSuccess, onCancel }: InitiativeForm
   const handleSubmit = () => {
     upload.mutate(
       {
-        ...formData,
+        title: formData.title,
+        problem: formData.problem,
+        solutionSketch: formData.solutionSketch,
         noGos: formData.noGos ? formData.noGos.split("\n").map((s) => s.trim()).filter(Boolean) : [],
         risks: formData.risks ? formData.risks.split("\n").map((s) => s.trim()).filter(Boolean) : [],
         successCriteria: formData.successCriteria || undefined,
         techStack: formData.techStack || undefined,
         additionalNotes: formData.additionalNotes || undefined,
         targetRepo: formData.targetRepo || undefined,
+        baseBranch: formData.baseBranch,
         clientId,
         files: files.length > 0 ? files : undefined,
       },
@@ -176,26 +177,6 @@ export function InitiativeForm({ clientId, onSuccess, onCancel }: InitiativeForm
                 placeholder="React, Node.js, PostgreSQL..."
                 rows={2}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="responsable">Responsable</Label>
-                <Input
-                  id="responsable"
-                  value={formData.responsable}
-                  onChange={(e) => handleChange("responsable", e.target.value)}
-                  placeholder="Nombre..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="soporte">Soporte</Label>
-                <Input
-                  id="soporte"
-                  value={formData.soporte}
-                  onChange={(e) => handleChange("soporte", e.target.value)}
-                  placeholder="Nombre..."
-                />
-              </div>
             </div>
              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

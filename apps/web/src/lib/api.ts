@@ -8,6 +8,7 @@ import type {
   InitiativeDetail,
   QuestionsResponse,
   Initiative,
+  Pitch,
 } from "@/types";
 
 const api = axios.create({
@@ -118,8 +119,6 @@ export interface UploadInitiativeInput {
   successCriteria?: string;
   techStack?: string;
   additionalNotes?: string;
-  responsable?: string;
-  soporte?: string;
   targetRepo?: string;
   baseBranch?: string;
   clientId?: string;
@@ -134,8 +133,6 @@ export async function uploadInitiative(input: UploadInitiativeInput): Promise<In
   if (input.targetRepo) formData.append("targetRepo", input.targetRepo);
   if (input.baseBranch) formData.append("baseBranch", input.baseBranch);
   if (input.clientId) formData.append("clientId", input.clientId);
-  if (input.responsable) formData.append("responsable", input.responsable);
-  if (input.soporte) formData.append("soporte", input.soporte);
   if (input.successCriteria) formData.append("successCriteria", input.successCriteria);
   if (input.techStack) formData.append("techStack", input.techStack);
   if (input.additionalNotes) formData.append("additionalNotes", input.additionalNotes);
@@ -203,8 +200,6 @@ export async function reuploadInitiative(
   formData.append("title", input.title);
   formData.append("problem", input.problem);
   formData.append("solutionSketch", input.solutionSketch);
-  if (input.responsable) formData.append("responsable", input.responsable);
-  if (input.soporte) formData.append("soporte", input.soporte);
   if (input.successCriteria) formData.append("successCriteria", input.successCriteria);
   if (input.techStack) formData.append("techStack", input.techStack);
   if (input.additionalNotes) formData.append("additionalNotes", input.additionalNotes);
@@ -236,3 +231,34 @@ export async function updateTaskStatus(
   await api.patch(`/initiatives/${initiativeId}/features/${featureId}/tasks/${taskId}/status`, { status });
 }
 
+// --- Pitches ---
+
+export interface CreatePitchInput {
+  title: string;
+  brief: string;
+  clientId?: string;
+}
+
+export async function createPitch(input: CreatePitchInput): Promise<Pitch> {
+  const { data } = await api.post<Pitch>("/pitches", input);
+  return data;
+}
+
+export async function fetchPitch(pitchId: string): Promise<Pitch> {
+  const { data } = await api.get<Pitch>(`/pitches/${pitchId}`);
+  return data;
+}
+
+export async function fetchPitchesByClient(clientId: string): Promise<{ data: Pitch[]; total: number }> {
+  const { data } = await api.get<{ data: Pitch[]; total: number }>("/pitches", { params: { clientId } });
+  return data;
+}
+
+export async function convertPitchToInitiative(pitchId: string): Promise<{ initiativeId: string }> {
+  const { data } = await api.post<{ initiativeId: string }>(`/pitches/${pitchId}/to-initiative`);
+  return data;
+}
+
+export async function deletePitch(pitchId: string): Promise<void> {
+  await api.delete(`/pitches/${pitchId}`);
+}

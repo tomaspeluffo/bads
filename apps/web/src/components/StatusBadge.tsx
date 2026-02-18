@@ -23,6 +23,11 @@ const statusColors: Record<string, string> = {
   merged: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
 
+  // Pitch statuses
+  generating: "bg-blue-100 text-blue-700",
+  ready: "bg-green-100 text-green-700",
+  converted: "bg-indigo-100 text-indigo-700",
+
   // Task statuses
   to_do: "bg-gray-100 text-gray-700",
   doing: "bg-blue-100 text-blue-700",
@@ -37,6 +42,9 @@ const statusLabels: Record<string, string> = {
   decomposed: "Listo",
   human_review: "Human Review",
   to_do: "To Do",
+  generating: "Generando",
+  ready: "Listo",
+  converted: "Convertido",
 };
 
 export function StatusBadge({ status }: { status: string }) {

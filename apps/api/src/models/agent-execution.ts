@@ -5,6 +5,7 @@ export const agentTypes = [
   "task_decomposer",
   "developer",
   "qa",
+  "pitch_agent",
 ] as const;
 
 export type AgentType = (typeof agentTypes)[number];
@@ -27,7 +28,7 @@ export type AgentExecution = z.infer<typeof AgentExecutionSchema>;
 
 export const InsertAgentExecutionSchema = z.object({
   agent: z.enum(agentTypes),
-  initiative_id: z.string().uuid(),
+  initiative_id: z.string().uuid().nullable().optional(),
   feature_id: z.string().uuid().nullable().optional(),
   task_id: z.string().uuid().nullable().optional(),
   input_tokens: z.number().int(),

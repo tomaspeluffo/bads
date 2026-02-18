@@ -70,8 +70,6 @@ initiativeRouter.post(
       successCriteria,
       techStack,
       additionalNotes,
-      responsable,
-      soporte,
       targetRepo,
       baseBranch,
       clientId,
@@ -92,8 +90,6 @@ initiativeRouter.post(
       successCriteria,
       techStack,
       additionalNotes,
-      responsable,
-      soporte,
       rawBlocks: [],
       attachments,
     };
@@ -216,8 +212,6 @@ initiativeRouter.put(
       successCriteria,
       techStack,
       additionalNotes,
-      responsable,
-      soporte,
     } = parsed.data;
 
     // Extract text from attached files
@@ -234,8 +228,6 @@ initiativeRouter.put(
       successCriteria,
       techStack,
       additionalNotes,
-      responsable,
-      soporte,
       rawBlocks: [],
       attachments,
     };

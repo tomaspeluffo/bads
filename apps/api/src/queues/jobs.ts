@@ -5,6 +5,7 @@ import { QUEUE } from "../config/constants.js";
 export const JobType = {
   PLAN_INITIATIVE: "PLAN_INITIATIVE",
   DECOMPOSE_FEATURE: "DECOMPOSE_FEATURE",
+  GENERATE_PITCH: "GENERATE_PITCH",
 } as const;
 
 export type JobTypeName = (typeof JobType)[keyof typeof JobType];
@@ -26,13 +27,24 @@ export interface DecomposeFeatureData {
   baseBranch: string;
 }
 
+export interface GeneratePitchData {
+  type: typeof JobType.GENERATE_PITCH;
+  pitchId: string;
+}
+
 export type PipelineJobData =
   | PlanInitiativeData
-  | DecomposeFeatureData;
+  | DecomposeFeatureData
+  | GeneratePitchData;
 
 // Enqueue helpers
 function enqueue(data: PipelineJobData) {
-  const jobId = `${data.type}-${data.initiativeId}-${"featureId" in data ? data.featureId : "na"}-${Date.now()}`;
+  let jobId: string;
+  if (data.type === JobType.GENERATE_PITCH) {
+    jobId = `${data.type}-${data.pitchId}-${Date.now()}`;
+  } else {
+    jobId = `${data.type}-${data.initiativeId}-${"featureId" in data ? data.featureId : "na"}-${Date.now()}`;
+  }
   return initiativePipelineQueue.add(data.type, data, {
     jobId,
     attempts: QUEUE.DEFAULT_ATTEMPTS,
@@ -49,4 +61,8 @@ export function enqueuePlanInitiative(opts: Omit<PlanInitiativeData, "type">) {
 
 export function enqueueDecomposeFeature(opts: Omit<DecomposeFeatureData, "type">) {
   return enqueue({ type: JobType.DECOMPOSE_FEATURE, ...opts });
+}
+
+export function enqueueGeneratePitch(opts: { pitchId: string }) {
+  return enqueue({ type: JobType.GENERATE_PITCH, pitchId: opts.pitchId });
 }
