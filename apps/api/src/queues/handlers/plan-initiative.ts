@@ -4,8 +4,10 @@ import * as planService from "../../services/plan.service.js";
 import * as featureService from "../../services/feature.service.js";
 import * as notionService from "../../services/notion.service.js";
 import type { NotionPageContent } from "../../services/notion.service.js";
+import { getOctokitForInitiative } from "../../services/github-token.service.js";
 import { runPlannerAgent } from "../../agents/planner.agent.js";
 import { createChildLogger } from "../../lib/logger.js";
+import { throwMaybeUnrecoverable } from "../unrecoverable.js";
 
 const log = createChildLogger({ handler: "plan-initiative" });
 
@@ -46,12 +48,39 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
     const initiative = await initiativeService.getInitiativeById(initiativeId);
     const additionalContext = (initiative?.metadata as Record<string, unknown>)?.additionalContext as string | undefined;
 
+    // Get existing features and separate merged from pending
+    const allExistingFeatures = await featureService.getFeaturesByInitiative(initiativeId);
+    const mergedFeatures = allExistingFeatures.filter((f) => f.status === "merged");
+    const pendingFeatures = allExistingFeatures.filter((f) => f.status !== "merged" && f.status !== "failed");
+
+    const existingFeatures = mergedFeatures.length > 0
+      ? {
+          merged: mergedFeatures.map((f) => ({ title: f.title, description: f.description, sequence_order: f.sequence_order })),
+          pending: pendingFeatures.map((f) => ({ title: f.title, description: f.description, sequence_order: f.sequence_order })),
+        }
+      : undefined;
+
+    // Fetch repo file tree for planner context (optional — proceed without if unavailable)
+    let repoFileTree: string[] = [];
+    if (targetRepo) {
+      try {
+        const githubService = await import("../../services/github.service.js");
+        const octokit = await getOctokitForInitiative(initiativeId);
+        repoFileTree = await githubService.getFileTree(targetRepo, baseBranch ?? "main", octokit);
+        log.info({ initiativeId, fileCount: repoFileTree.length }, "Fetched repo file tree for planner context");
+      } catch (err) {
+        log.warn({ err, initiativeId }, "Could not fetch repo file tree, proceeding without it");
+      }
+    }
+
     // 2. Run Planner Agent
-    log.info({ initiativeId }, "Running Planner Agent");
+    log.info({ initiativeId, mergedCount: mergedFeatures.length }, "Running Planner Agent");
     const planResult = await runPlannerAgent({
       initiativeId,
       notionContent,
       additionalContext,
+      existingFeatures,
+      repoFileTree: repoFileTree.length > 0 ? repoFileTree : undefined,
     });
 
     // 3. Handle result based on status
@@ -78,34 +107,30 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
     log.info({ initiativeId, featureCount: planResult.features.length }, "Planner produced a plan");
 
     // 4. Store plan
+    const totalFeatureCount = mergedFeatures.length + planResult.features.length;
     const version = await planService.getNextPlanVersion(initiativeId);
     const plan = await planService.createPlan({
       initiative_id: initiativeId,
       version,
       summary: planResult.summary,
       raw_output: planResult as unknown as Record<string, unknown>,
-      feature_count: planResult.features.length,
+      feature_count: totalFeatureCount,
       is_active: true,
     });
 
-    // 5. Store features
-    const featureInserts = planResult.features.map((f, i) => ({
-      plan_id: plan.id,
-      initiative_id: initiativeId,
-      sequence_order: i + 1,
-      title: f.title,
-      description: f.description,
-      acceptance_criteria: f.acceptanceCriteria,
-      user_story: f.userStory,
-      developer_context: f.developerContext ?? null,
-      status: "pending" as const,
-      retry_count: 0,
-    }));
+    // Migrate merged features to the new plan (plan_id update only)
+    if (mergedFeatures.length > 0) {
+      await featureService.migrateFeaturesToPlan(
+        mergedFeatures.map((f) => f.id),
+        plan.id,
+      );
+      log.info({ initiativeId, migratedCount: mergedFeatures.length }, "Migrated merged features to new plan");
+    }
 
-    const features = await featureService.createFeatures(featureInserts);
-    await initiativeService.updateInitiativeStatus(initiativeId, "planned");
+    // Set status to plan_review — features are created only after user approves the plan
+    await initiativeService.updateInitiativeStatus(initiativeId, "plan_review");
 
-    log.info({ initiativeId, featureCount: features.length }, "Plan created, awaiting manual feature start");
+    log.info({ initiativeId, featureCount: totalFeatureCount }, "Plan created, awaiting user approval");
   } catch (err) {
     log.error({ err, initiativeId }, "Plan initiative failed");
     await initiativeService.updateInitiativeStatus(
@@ -113,6 +138,6 @@ export async function handlePlanInitiative(data: PlanInitiativeData): Promise<vo
       "failed",
       err instanceof Error ? err.message : "Unknown error",
     );
-    throw err;
+    throwMaybeUnrecoverable(err);
   }
 }

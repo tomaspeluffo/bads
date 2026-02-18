@@ -262,3 +262,21 @@ export async function convertPitchToInitiative(pitchId: string): Promise<{ initi
 export async function deletePitch(pitchId: string): Promise<void> {
   await api.delete(`/pitches/${pitchId}`);
 }
+
+export async function approvePlan(initiativeId: string): Promise<void> {
+  await api.post(`/initiatives/${initiativeId}/plan/approve`);
+}
+
+// --- Plan chat ---
+
+export async function chatWithPlan(
+  initiativeId: string,
+  message: string,
+  history: Array<{ role: "user" | "assistant"; content: string }>,
+): Promise<{ response: string }> {
+  const { data } = await api.post<{ response: string }>(
+    `/initiatives/${initiativeId}/plan/chat`,
+    { message, history },
+  );
+  return data;
+}

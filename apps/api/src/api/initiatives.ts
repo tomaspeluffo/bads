@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { authMiddleware } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { asyncHandler, AppError } from "../middleware/error-handler.js";
@@ -18,6 +19,7 @@ import { enqueuePlanInitiative } from "../queues/jobs.js";
 import { upload } from "../middleware/upload.js";
 import { extractTextFromFiles } from "../lib/file-parser.js";
 import type { AuthenticatedRequest } from "../types/index.js";
+import { runPlanChatAgent } from "../agents/plan-chat.agent.js";
 
 export const initiativeRouter = Router();
 
@@ -133,9 +135,9 @@ initiativeRouter.post(
     const initiative = await initiativeService.getInitiativeById(id);
     if (!initiative) throw new AppError(404, "Iniciativa no encontrada");
 
-    const replanAllowedStatuses = ["needs_info", "failed", "planning", "planned"];
+    const replanAllowedStatuses = ["needs_info", "failed", "planning", "planned", "plan_review"];
     if (!replanAllowedStatuses.includes(initiative.status)) {
-      throw new AppError(400, `No se puede replanificar una iniciativa con status "${initiative.status}". Debe ser "needs_info", "failed", "planning" o "planned".`);
+      throw new AppError(400, `No se puede replanificar una iniciativa con status "${initiative.status}". Debe ser "needs_info", "failed", "planning", "planned" o "plan_review".`);
     }
 
     // Extract text from attached files
@@ -162,15 +164,11 @@ initiativeRouter.post(
       metadata: { ...currentMetadata, additionalContext: mergedContext },
     });
 
-    // Re-enqueue planning job
+    // Re-enqueue planning job — never re-fetch from Notion on replan,
+    // raw_content is already stored from the initial planning run.
     const { targetRepo, baseBranch } = currentMetadata as { targetRepo: string; baseBranch: string };
-    // Pass notionPageId only for real Notion initiatives (not direct uploads)
-    const notionPageId = initiative.notion_page_id?.startsWith("direct-upload-")
-      ? undefined
-      : initiative.notion_page_id;
     await enqueuePlanInitiative({
       initiativeId: id,
-      notionPageId,
       targetRepo,
       baseBranch,
     });
@@ -314,6 +312,111 @@ initiativeRouter.patch(
     });
 
     res.json({ message: "Repositorio actualizado", targetRepo: targetRepo.trim() });
+  }),
+);
+
+// POST /api/initiatives/:id/plan/chat - Chat with the planner about the current plan
+const PlanChatBody = z.object({
+  message: z.string().min(1).max(2000),
+  history: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() }))
+    .max(20)
+    .default([]),
+});
+
+initiativeRouter.post(
+  "/initiatives/:id/plan/chat",
+  authMiddleware,
+  validate({ params: InitiativeIdParams }),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id as string;
+
+    const bodyResult = PlanChatBody.safeParse(req.body);
+    if (!bodyResult.success) {
+      throw new AppError(400, bodyResult.error.errors.map((e) => e.message).join(", "));
+    }
+
+    const { message, history } = bodyResult.data;
+
+    const initiative = await initiativeService.getInitiativeById(id);
+    if (!initiative) throw new AppError(404, "Iniciativa no encontrada");
+
+    const plan = await planService.getActivePlan(id);
+    if (!plan) throw new AppError(404, "No hay un plan activo para esta iniciativa");
+
+    const features = await featureService.getFeaturesByInitiative(id);
+
+    const response = await runPlanChatAgent({
+      initiativeId: id,
+      plan: {
+        summary: plan.summary,
+        features: features.map((f) => ({
+          title: f.title,
+          description: f.description,
+          sequence_order: f.sequence_order,
+        })),
+      },
+      history,
+      userMessage: message,
+    });
+
+    res.json({ response });
+  }),
+);
+
+// POST /api/initiatives/:id/plan/approve - Approve plan and create features
+initiativeRouter.post(
+  "/initiatives/:id/plan/approve",
+  authMiddleware,
+  validate({ params: InitiativeIdParams }),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id as string;
+
+    const initiative = await initiativeService.getInitiativeById(id);
+    if (!initiative) throw new AppError(404, "Iniciativa no encontrada");
+    if (initiative.status !== "plan_review") {
+      throw new AppError(400, `Solo se puede aprobar un plan con status "plan_review". Status actual: "${initiative.status}".`);
+    }
+
+    const plan = await planService.getActivePlan(id);
+    if (!plan) throw new AppError(404, "No hay un plan activo para esta iniciativa");
+
+    type RawFeature = {
+      title: string;
+      description: string;
+      acceptanceCriteria: string[];
+      userStory: string;
+      developerContext?: string;
+      estimatedComplexity: string;
+    };
+    const plannerFeatures = (plan.raw_output as { features?: RawFeature[] } | null)?.features ?? [];
+    if (plannerFeatures.length === 0) {
+      throw new AppError(400, "El plan no contiene features para crear");
+    }
+
+    // Get already-existing features (merged ones migrated to this plan)
+    const existingFeatures = await featureService.getFeaturesByInitiative(id);
+    const maxExistingOrder = existingFeatures.length > 0
+      ? Math.max(...existingFeatures.map((f) => f.sequence_order))
+      : 0;
+
+    const featureInserts = plannerFeatures.map((f, i) => ({
+      plan_id: plan.id,
+      initiative_id: id,
+      sequence_order: maxExistingOrder + i + 1,
+      title: f.title,
+      description: f.description,
+      acceptance_criteria: f.acceptanceCriteria,
+      user_story: f.userStory,
+      developer_context: f.developerContext ?? null,
+      status: "pending" as const,
+      retry_count: 0,
+    }));
+
+    await featureService.createFeatures(featureInserts);
+    await initiativeService.updateInitiativeStatus(id, "planned");
+
+    res.json({ message: "Plan aprobado, features creadas", initiativeId: id });
   }),
 );
 

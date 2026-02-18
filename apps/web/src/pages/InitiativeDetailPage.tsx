@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Trash2, Paperclip, AlertTriangle, RefreshCw, Upload } from "lucide-react";
+import { Trash2, Paperclip, AlertTriangle, RefreshCw, Upload, MessageSquare, ChevronDown, ChevronRight, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ import {
   useUpdateTaskStatus,
   useDeleteInitiative,
   useUpdateRepo,
+  usePlanChat,
+  useApprovePlan,
 } from "@/hooks/useInitiative";
 import { useClient } from "@/hooks/useClients";
 
@@ -48,10 +50,16 @@ export function InitiativeDetailPage() {
   const updateTaskStatus = useUpdateTaskStatus(initiativeId!);
   const deleteInit = useDeleteInitiative();
   const updateRepo = useUpdateRepo(initiativeId!);
-  const [activeTab, setActiveTab] = useState<"features" | "tasks">("features");
+  const planChat = usePlanChat(initiativeId!);
+  const approvePlanMutation = useApprovePlan(initiativeId!);
+  const [activeTab, setActiveTab] = useState<"plan" | "features" | "tasks">("plan");
   const [answer, setAnswer] = useState("");
   const [replanFiles, setReplanFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [expandedFeatures, setExpandedFeatures] = useState<Record<string, boolean>>({});
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [chatInput, setChatInput] = useState("");
 
   const [reuploadOpen, setReuploadOpen] = useState(false);
   const [reuploadForm, setReuploadForm] = useState({
@@ -190,7 +198,7 @@ export function InitiativeDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={initiative.status} />
-          {["failed", "planning", "planned"].includes(initiative.status) && (
+          {["failed", "planning", "planned", "plan_review"].includes(initiative.status) && (
             <>
               <Button
                 variant="outline"
@@ -410,25 +418,6 @@ export function InitiativeDetailPage() {
         </p>
       )}
 
-      {/* Resumen del plan */}
-      {initiative.plan && (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Descripción de la Iniciativa</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {(initiative.raw_content as Record<string, unknown>)?.problem as string || (initiative.raw_content as Record<string, unknown>)?.description as string || "Sin descripción disponible."}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {initiative.plan.feature_count} features
-              </p>
-            </CardContent>
-          </Card>
-          <Separator />
-        </>
-      )}
 
       {/* Seccion de preguntas */}
       {initiative.status === "needs_info" &&
@@ -527,25 +516,39 @@ export function InitiativeDetailPage() {
           </>
         )}
 
-      {/* Tableros */}
-      {initiative.features.length > 0 && (
+      {/* Tabs: Plan / Features / Tareas */}
+      {(initiative.plan !== null || initiative.features.length > 0) && (
         <>
-          {!hasRepo && (
+          {!hasRepo && initiative.features.length > 0 && (
             <p className="text-sm text-yellow-600">
               Configura el repositorio para poder descomponer features.
             </p>
           )}
           <div className="flex gap-1 border-b">
-            <button
-              className={`px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
-                activeTab === "features"
-                  ? "border-b-2 border-primary text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setActiveTab("features")}
-            >
-              Features
-            </button>
+            {initiative.plan && (
+              <button
+                className={`px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                  activeTab === "plan"
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setActiveTab("plan")}
+              >
+                Plan
+              </button>
+            )}
+            {initiative.features.length > 0 && (
+              <button
+                className={`px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                  activeTab === "features"
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setActiveTab("features")}
+              >
+                Features
+              </button>
+            )}
             {initiative.features.some((f) => f.tasks.length > 0) && (
               <button
                 className={`px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
@@ -559,7 +562,240 @@ export function InitiativeDetailPage() {
               </button>
             )}
           </div>
+
           <div className="mt-4">
+            {/* ── Plan tab ── */}
+            {activeTab === "plan" && initiative.plan && (() => {
+              type RawPlanFeature = {
+                title: string;
+                description: string;
+                acceptanceCriteria?: string[];
+                userStory?: string;
+                developerContext?: string;
+                estimatedComplexity?: "low" | "medium" | "high";
+              };
+              const rawFeatures = (
+                initiative.plan.raw_output as { features?: RawPlanFeature[] } | null
+              )?.features ?? [];
+
+              const sendChat = () => {
+                const userMsg = chatInput.trim();
+                if (!userMsg || planChat.isPending) return;
+                const newHistory = [...chatMessages, { role: "user" as const, content: userMsg }];
+                setChatMessages(newHistory);
+                setChatInput("");
+                planChat.mutate(
+                  { message: userMsg, history: chatMessages },
+                  {
+                    onSuccess: (data) => {
+                      setChatMessages([...newHistory, { role: "assistant" as const, content: data.response }]);
+                    },
+                    onError: () => {
+                      setChatMessages([...newHistory, { role: "assistant" as const, content: "Error al procesar la consulta. Intentá nuevamente." }]);
+                    },
+                  },
+                );
+              };
+
+              return (
+                <div className="space-y-4">
+                  {/* Approve banner */}
+                  {initiative.status === "plan_review" && (
+                    <Card className="border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
+                      <CardContent className="pt-4 flex items-center justify-between gap-4 flex-wrap">
+                        <p className="text-sm text-blue-700 dark:text-blue-400">
+                          El plan está listo. Revisalo y aprobalo para que se creen las features y puedas empezar el desarrollo.
+                        </p>
+                        <Button
+                          onClick={() => approvePlanMutation.mutate()}
+                          disabled={approvePlanMutation.isPending}
+                        >
+                          {approvePlanMutation.isPending ? "Aprobando..." : "Aprobar plan"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Plan header */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1 flex-1">
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                        v{initiative.plan.version}
+                      </p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {initiative.plan.summary}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setChatOpen(true)}>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Consultar al planificador
+                    </Button>
+                  </div>
+
+                  {/* Features accordion */}
+                  {rawFeatures.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Features del plan
+                      </p>
+                      {rawFeatures.map((rf, i) => {
+                        const featureKey = `raw-${i}`;
+                        const isExpanded = !!expandedFeatures[featureKey];
+                        const complexity = rf.estimatedComplexity;
+                        return (
+                          <div key={featureKey} className="border rounded-md overflow-hidden">
+                            <button
+                              type="button"
+                              className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors"
+                              onClick={() =>
+                                setExpandedFeatures((prev) => ({
+                                  ...prev,
+                                  [featureKey]: !prev[featureKey],
+                                }))
+                              }
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              )}
+                              <span className="text-sm font-medium flex-1">
+                                {i + 1}. {rf.title}
+                              </span>
+                              {complexity && (
+                                <span
+                                  title="Complejidad estimada"
+                                  className={`text-xs px-2 py-0.5 rounded font-medium text-white ${
+                                    complexity === "low"
+                                      ? "bg-emerald-600"
+                                      : complexity === "medium"
+                                        ? "bg-amber-500"
+                                        : "bg-red-600"
+                                  }`}
+                                >
+                                  {complexity === "low" ? "baja" : complexity === "medium" ? "media" : "alta"}
+                                </span>
+                              )}
+                            </button>
+                            {isExpanded && (
+                              <div className="px-4 pb-3 pt-1 space-y-3 border-t bg-muted/20">
+                                <p className="text-sm text-muted-foreground">{rf.description}</p>
+                                {rf.userStory && (
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">User story</p>
+                                    <p className="text-sm italic">{rf.userStory}</p>
+                                  </div>
+                                )}
+                                {rf.acceptanceCriteria && rf.acceptanceCriteria.length > 0 && (
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Criterios de aceptación</p>
+                                    <ul className="space-y-0.5">
+                                      {rf.acceptanceCriteria.map((c, ci) => (
+                                        <li key={ci} className="text-sm flex gap-1.5">
+                                          <span className="text-muted-foreground">☐</span>
+                                          <span>{c}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                {rf.developerContext && (
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Contexto técnico</p>
+                                    <p className="text-sm text-muted-foreground">{rf.developerContext}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Chat dialog */}
+                  <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+                    <DialogContent className="sm:max-w-[600px] flex flex-col max-h-[80vh]">
+                      <DialogHeader>
+                        <DialogTitle>Consultar al planificador</DialogTitle>
+                      </DialogHeader>
+                      <div className="flex-1 overflow-y-auto space-y-3 py-2 min-h-0" style={{ maxHeight: "400px" }}>
+                        {chatMessages.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            Preguntá sobre las decisiones técnicas del plan o sugerí cambios.
+                          </p>
+                        )}
+                        {chatMessages.map((msg, idx) => (
+                          <div
+                            key={idx}
+                            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                          >
+                            <div
+                              className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                                msg.role === "user"
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-foreground"
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap">{msg.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {planChat.isPending && (
+                          <div className="flex justify-start">
+                            <div className="bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground">
+                              Pensando...
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2 pt-2 border-t">
+                        {chatMessages.some((m) => m.role === "assistant") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-xs"
+                            onClick={() => {
+                              const lastAssistant = [...chatMessages].reverse().find((m) => m.role === "assistant");
+                              if (lastAssistant) {
+                                replan.mutate(
+                                  { additionalContext: lastAssistant.content },
+                                  { onSuccess: () => setChatOpen(false) },
+                                );
+                              }
+                            }}
+                            disabled={replan.isPending}
+                          >
+                            {replan.isPending ? "Replanificando..." : "Usar última respuesta como contexto para replanificar"}
+                          </Button>
+                        )}
+                        <div className="flex gap-2">
+                          <Textarea
+                            placeholder="Escribí tu pregunta..."
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            rows={2}
+                            className="resize-none"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                sendChat();
+                              }
+                            }}
+                          />
+                          <Button size="icon" disabled={!chatInput.trim() || planChat.isPending} onClick={sendChat}>
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Enter para enviar · Shift+Enter para nueva línea</p>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              );
+            })()}
+
+            {/* ── Features tab ── */}
             {activeTab === "features" && (
               <FeatureKanbanBoard
                 features={initiative.features}
@@ -569,6 +805,8 @@ export function InitiativeDetailPage() {
                 }
               />
             )}
+
+            {/* ── Tasks tab ── */}
             {activeTab === "tasks" && (
               <KanbanBoard
                 features={initiative.features}

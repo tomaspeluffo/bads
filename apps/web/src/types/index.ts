@@ -34,6 +34,7 @@ export type InitiativeStatus =
   | "pending"
   | "planning"
   | "needs_info"
+  | "plan_review"
   | "planned"
   | "in_progress"
   | "completed"

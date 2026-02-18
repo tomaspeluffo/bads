@@ -9,6 +9,8 @@ import {
   updateInitiativeRepo,
   decomposeFeature,
   updateTaskStatus,
+  chatWithPlan,
+  approvePlan,
 } from "@/lib/api";
 import type { UploadInitiativeInput, ReuploadInitiativeInput } from "@/lib/api";
 
@@ -107,5 +109,27 @@ export function useUpdateRepo(initiativeId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
     },
+  });
+}
+
+export function useApprovePlan(initiativeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => approvePlan(initiativeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["initiative", initiativeId] });
+    },
+  });
+}
+
+export function usePlanChat(initiativeId: string) {
+  return useMutation({
+    mutationFn: ({
+      message,
+      history,
+    }: {
+      message: string;
+      history: Array<{ role: "user" | "assistant"; content: string }>;
+    }) => chatWithPlan(initiativeId, message, history),
   });
 }

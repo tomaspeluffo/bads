@@ -99,3 +99,11 @@ export async function allFeaturesMerged(initiativeId: string): Promise<boolean> 
   );
   return result.rows.length === 0;
 }
+
+export async function migrateFeaturesToPlan(featureIds: string[], newPlanId: string): Promise<void> {
+  if (featureIds.length === 0) return;
+  await query(
+    `UPDATE features SET plan_id = $1 WHERE id = ANY($2::uuid[])`,
+    [newPlanId, featureIds],
+  );
+}

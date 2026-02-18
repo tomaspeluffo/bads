@@ -2,6 +2,7 @@ import * as pitchService from "../../services/pitch.service.js";
 import { runPitchAgent } from "../../agents/pitch.agent.js";
 import type { GeneratePitchData } from "../jobs.js";
 import { createChildLogger } from "../../lib/logger.js";
+import { throwMaybeUnrecoverable } from "../unrecoverable.js";
 
 const log = createChildLogger({ module: "generate-pitch-handler" });
 
@@ -29,6 +30,6 @@ export async function handleGeneratePitch(data: GeneratePitchData): Promise<void
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     await pitchService.updatePitchStatus(pitchId, "failed", message);
-    throw err;
+    throwMaybeUnrecoverable(err);
   }
 }

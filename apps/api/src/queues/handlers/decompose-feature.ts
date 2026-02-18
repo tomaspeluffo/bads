@@ -4,6 +4,7 @@ import * as taskService from "../../services/task.service.js";
 import { runTaskDecomposerAgent } from "../../agents/task-decomposer.agent.js";
 import { getOctokitForInitiative } from "../../services/github-token.service.js";
 import { createChildLogger } from "../../lib/logger.js";
+import { throwMaybeUnrecoverable } from "../unrecoverable.js";
 
 const log = createChildLogger({ handler: "decompose-feature" });
 
@@ -62,6 +63,6 @@ export async function handleDecomposeFeature(data: DecomposeFeatureData): Promis
   } catch (err) {
     log.error({ err, featureId }, "Decompose feature failed");
     await featureService.updateFeatureStatus(featureId, "failed");
-    throw err;
+    throwMaybeUnrecoverable(err);
   }
 }

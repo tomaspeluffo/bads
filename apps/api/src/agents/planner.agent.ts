@@ -41,11 +41,20 @@ export async function runPlannerAgent(opts: {
   initiativeId: string;
   notionContent: NotionPageContent;
   additionalContext?: string;
+  existingFeatures?: {
+    merged: Array<{ title: string; description: string; sequence_order: number }>;
+    pending: Array<{ title: string; description: string; sequence_order: number }>;
+  };
+  repoFileTree?: string[];
 }): Promise<PlannerResult> {
   // Get relevant patterns from memory
   const patterns = await memoryService.getRelevantPatterns("", ["planning"]).catch(() => []);
   const patternsContext = patterns.length > 0
     ? `\n\nPatrones relevantes de iniciativas anteriores:\n${patterns.map((p) => `- ${p.title}: ${p.content}`).join("\n")}`
+    : "";
+
+  const implementationRule = opts.existingFeatures?.merged && opts.existingFeatures.merged.length > 0
+    ? "\n7. Si se provee el estado de implementación, NO incluyas las features ya implementadas en tu respuesta. Solo generá features nuevas o correcciones a las pendientes."
     : "";
 
   const system = `Sos un tech lead senior. Recibís pitches y creás planes de implementación. Respondé siempre en español.
@@ -63,7 +72,7 @@ Solo preguntás lo que únicamente el cliente puede responder: lógica de negoci
 3. Si podés inferir o decidir algo razonablemente, hacelo y documentalo en developerContext.
 4. Cada feature = 1 PR, autocontenido, ordenado por dependencia.
 5. El primer feature siempre es scaffold/setup del proyecto.
-6. Sé conciso en descriptions y acceptance criteria.
+6. Sé conciso en descriptions y acceptance criteria.${implementationRule}
 
 ## Formato JSON (sin markdown fences)
 
@@ -97,9 +106,35 @@ Si está completo:
   if (opts.notionContent.techStack) fields.push(`**Stack:** ${opts.notionContent.techStack}`);
   if (opts.notionContent.additionalNotes) fields.push(`**Notas:** ${opts.notionContent.additionalNotes}`);
 
+  let existingFeaturesBlock = "";
+  if (opts.existingFeatures && opts.existingFeatures.merged.length > 0) {
+    const mergedList = opts.existingFeatures.merged
+      .map((f) => `- Feature ${f.sequence_order}: ${f.title}`)
+      .join("\n");
+    const pendingList = opts.existingFeatures.pending.length > 0
+      ? opts.existingFeatures.pending.map((f) => `- Feature ${f.sequence_order}: ${f.title}`).join("\n")
+      : "Ninguna";
+    existingFeaturesBlock = `\n\n**Estado actual de implementación:**
+Features ya implementadas (NO replanear):
+${mergedList}
+
+Features pendientes (podés reemplazar, mantener o agregar nuevas):
+${pendingList}`;
+  }
+
+  let repoFileTreeBlock = "";
+  if (opts.repoFileTree && opts.repoFileTree.length > 0) {
+    const MAX_FILES = 300;
+    const files = opts.repoFileTree.slice(0, MAX_FILES);
+    const truncated = opts.repoFileTree.length > MAX_FILES
+      ? `\n... (${opts.repoFileTree.length - MAX_FILES} archivos más)`
+      : "";
+    repoFileTreeBlock = `\n\n**Árbol de archivos del repositorio (estado actual del código):**\n${files.join("\n")}${truncated}`;
+  }
+
   const userMessage = `Analizá este pitch y creá un plan (o pedí info faltante):
 
-${fields.join("\n")}${attachmentsBlock}${additionalBlock}`;
+${fields.join("\n")}${attachmentsBlock}${additionalBlock}${existingFeaturesBlock}${repoFileTreeBlock}`;
 
   const result = await callAgent({
     agent: "planner",
